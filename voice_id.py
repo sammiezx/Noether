@@ -6,7 +6,7 @@ similarity (= dot product since they're already unit-length).
 
 Same-speaker similarity is typically 0.75-0.90. Different speakers
 land around 0.30-0.55. The default threshold (0.65) is permissive —
-tune up if you get false positives, down if Jane stops recognizing
+tune up if you get false positives, down if Emmy stops recognizing
 you when you have a cold.
 """
 

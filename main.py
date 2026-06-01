@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from controls import Controls
-from jarvis_loop import run_jarvis
+from loop import run_loop
 from server import create_app
 from state_bus import StateBus
 
@@ -29,7 +29,7 @@ def main() -> None:
     controls = Controls()
     app = create_app(bus, controls)
 
-    loop_thread = threading.Thread(target=run_jarvis, args=(bus, controls), daemon=True)
+    loop_thread = threading.Thread(target=run_loop, args=(bus, controls), daemon=True)
     loop_thread.start()
 
     def open_browser() -> None:
@@ -38,7 +38,7 @@ def main() -> None:
 
     threading.Thread(target=open_browser, daemon=True).start()
 
-    print(f"Jarvis UI: http://{HOST}:{PORT}/")
+    print(f"Noether UI: http://{HOST}:{PORT}/")
     uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
 
 

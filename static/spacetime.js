@@ -1,6 +1,6 @@
 // Fullscreen physics-flavored visualization layer.
 // Receives { type: "spacetime", action, scene?, value? } events from the
-// global window.__spacetime bridge (set up in jarvis.js).
+// global window.__spacetime bridge (set up in app.js).
 //
 // Five scenes:
 //   blackhole  — Schwarzschild horizon + warped grid + accretion disk
@@ -566,7 +566,7 @@ function setScene(name) {
 }
 
 // =====================================================================
-// Public API exposed to jarvis.js
+// Public API exposed to app.js
 // =====================================================================
 
 function show() {

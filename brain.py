@@ -1,4 +1,4 @@
-"""Noether — Jane's brain: Claude with an agentic tool-use loop.
+"""Noether — Emmy's brain: Claude with an agentic tool-use loop.
 
 `respond()` is now multi-turn under the hood — each call may invoke tools
 several times before producing the final spoken text. Intermediate text

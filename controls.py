@@ -1,5 +1,5 @@
 """Thread-safe runtime controls shared between the WebSocket handler
-(asyncio loop) and the Jarvis worker thread."""
+(asyncio loop) and the Emmy worker thread."""
 
 from __future__ import annotations
 

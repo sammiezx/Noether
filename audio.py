@@ -107,7 +107,7 @@ def listen_during_tts(
     """Monitor the mic while TTS plays. Return True iff the user spoke.
 
     Uses a higher energy threshold than ambient capture to suppress
-    speaker bleed (Jane hearing her own voice). Returns when TTS ends
+    speaker bleed (Emmy hearing her own voice). Returns when TTS ends
     naturally (False) or the user has spoken above threshold for
     `interrupt_min_frames * FRAME_DURATION_MS` ms (True).
     """

@@ -33,7 +33,7 @@ text-to-speech, and speaker verification all happen on-device.
 
 ```
                  ┌─────────────────────────────────────────────┐
-   mic ─────────▶│  jarvis_loop (worker thread)                 │
+   mic ─────────▶│  loop (worker thread)                        │
                  │   record → verify → STT → Brain → TTS        │
                  │      │        │      │      │       │         │
    speakers ◀────┼──────┼────────┼──────┼──────┼───────┘         │
@@ -51,7 +51,7 @@ text-to-speech, and speaker verification all happen on-device.
 `main.py` boots the loop in a daemon thread, starts the FastAPI server, and opens the
 browser at `http://127.0.0.1:8765/`.
 
-### Per-turn pipeline (`jarvis_loop.py`)
+### Per-turn pipeline (`loop.py`)
 
 1. **Listen** — `audio.record_until_silence` captures from the mic until you go quiet,
    with a noise-floor calibration, pre-roll buffer, and trigger debouncing.
@@ -72,7 +72,7 @@ reset phrase ("forget my voice", "re-enroll", …) to wipe and re-record your vo
 | File | Role |
 |------|------|
 | `main.py` | Entry point — boots loop thread + server + browser |
-| `jarvis_loop.py` | The conversation loop and state machine |
+| `loop.py` | The conversation loop and state machine |
 | `brain.py` | Claude client + agentic tool-use loop + Emmy system prompt |
 | `tools.py` | The tools Claude can call (see below) |
 | `audio.py` | Mic capture, VAD, noise calibration, barge-in detection |
@@ -140,7 +140,7 @@ Type an equation in the page; Claude (`interpreter.py`) parses it into a spec an
 - **Model** — `brain.Brain(model=...)` (default `claude-opus-4-7`).
 - **Voice ID threshold** — `voice_id.DEFAULT_THRESHOLD` (raise for fewer false accepts,
   lower if it stops recognizing you).
-- **TTS voice / rate** — `tts.TTS(voice="Zoe", rate=185)`.
+- **TTS voice / rate** — `tts.TTS(voice="Zoe", rate=185)` (`Zoe` is a macOS `say` voice).
 - **Tool-use cap** — `brain.MAX_ITERATIONS`.
 - **Host / port** — `main.HOST` / `main.PORT`.
 
@@ -152,5 +152,5 @@ Type an equation in the page; Claude (`interpreter.py`) parses it into a spec an
   keep them out of version control.
 - `resemblyzer` is imported by `voice_id.py` but not currently listed in
   `requirements.txt`; install it separately (see Setup).
-- The assistant persona is referred to as **Emmy / Noether** in the prompt; some older
-  internal names (Jane, Zoe) still linger in a few files.
+- The assistant persona is **Emmy** (a.k.a. **Noether**). The macOS voice she speaks in
+  happens to be named `Zoe` — that's a system voice, not the assistant's name.

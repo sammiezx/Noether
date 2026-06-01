@@ -1,4 +1,4 @@
-"""Thread-safe pub/sub bridge between the Jarvis loop (thread) and the
+"""Thread-safe pub/sub bridge between the Emmy loop (thread) and the
 FastAPI WebSocket handlers (asyncio).
 
 The loop calls `publish()` from its worker thread; each connected client has

@@ -1,4 +1,4 @@
-"""The Noether agent loop. Runs in a worker thread and publishes
+"""The Emmy agent loop. Runs in a worker thread and publishes
 state-change events to a StateBus so the web UI can react.
 
 Pipeline per turn:
@@ -36,12 +36,10 @@ SHUTDOWN_PHRASES = {
     "exit",
     "quit",
     "goodbye",
-    "goodbye jane",
     "goodbye emmy",
     "goodbye noether",
     "shut down",
     "shutdown",
-    "stop jane",
     "stop emmy",
     "stop noether",
     "power down",
@@ -106,7 +104,7 @@ def _is_reset_voice(text: str) -> bool:
     return text.lower().strip(" .!?,") in RESET_VOICE_PHRASES
 
 
-def run_jarvis(bus: StateBus, controls: Controls) -> None:
+def run_loop(bus: StateBus, controls: Controls) -> None:
     """Initialize the pipeline and run the conversation loop forever."""
     try:
         init_tools(bus)

@@ -1,4 +1,4 @@
-// Reactive Jarvis HUD: arc-reactor-style orb on a Canvas, transcript panel,
+// Reactive Emmy HUD: arc-reactor-style orb on a Canvas, transcript panel,
 // WebSocket events from the Python backend drive state + amplitude.
 
 const STATE_COLORS = {

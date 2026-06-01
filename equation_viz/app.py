@@ -3,7 +3,7 @@
 Run with:  python equation_viz/app.py
 Then open: http://127.0.0.1:8766/
 
-Later, this module can be mounted into the main Jarvis server as a sub-app.
+Later, this module can be mounted into the main Noether server as a sub-app.
 """
 
 from __future__ import annotations

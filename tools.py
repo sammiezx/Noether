@@ -1,4 +1,4 @@
-"""Tools Zoe can call. In-process Python functions, dispatched by name.
+"""Tools Emmy can call. In-process Python functions, dispatched by name.
 
 Each tool:
   - has a JSON schema in TOOL_SCHEMAS (sent to Claude)
