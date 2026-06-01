@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noether · Equation Visualizer</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080812;
+      --surface:  #0d0d1f;
+      --border:   #1a1a35;
+      --border-hi:#2563eb;
+      --text:     #cbd5e1;
+      --muted:    #475569;
+      --accent:   #60a5fa;
+      --accent-d: #1e3a5f;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      padding: 0;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      padding: 1.25rem 2rem 0;
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+    }
+    .logo {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .logo span { color: var(--accent); }
+
+    /* ── Main layout ────────────────────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* ── Left: chart area ───────────────────────────────────────────── */
+    .chart-panel {
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1.5rem 1.5rem 2rem;
+      border-right: 1px solid var(--border);
+      min-height: 0;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    #eq-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      padding: 0.65rem 1rem;
+      font-family: 'Courier New', monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #eq-input:focus { border-color: var(--border-hi); }
+    #eq-input::placeholder { color: var(--muted); }
+
+    .btn {
+      background: var(--accent-d);
+      border: 1px solid var(--border-hi);
+      border-radius: 8px;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.65rem 1.4rem;
+      transition: background 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #1e40af; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.25rem;
+    }
+    .chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.72rem;
+      padding: 0.25rem 0.8rem;
+      transition: border-color 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* latex display */
+    #eq-display {
+      min-height: 2.5rem;
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    #eq-display.has-eq {
+      background: rgba(96, 165, 250, 0.06);
+      border: 1px solid rgba(96, 165, 250, 0.12);
+    }
+
+    #chart {
+      flex: 1;
+      min-height: 380px;
+    }
+
+    .status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-height: 1.4em;
+      margin-bottom: 0.25rem;
+    }
+    .status.error { color: #f87171; }
+    .status.loading { color: var(--accent); }
+
+    /* ── Right: sidebar ─────────────────────────────────────────────── */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .sidebar-section h3 {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    #title-display {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+    #description {
+      font-size: 0.82rem;
+      color: #64748b;
+      line-height: 1.65;
+      margin-top: 0.5rem;
+    }
+
+    /* Parameters */
+    .param-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-bottom: 1rem;
+    }
+    .param-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .param-label {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .param-value {
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-family: 'Courier New', monospace;
+      min-width: 50px;
+      text-align: right;
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 4px;
+    }
+    .param-bounds {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--muted);
+      font-family: monospace;
+    }
+
+    #no-params {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ── Empty state ────────────────────────────────────────────────── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--muted);
+      user-select: none;
+    }
+    .empty-state .icon {
+      font-size: 3rem;
+      opacity: 0.3;
+    }
+    .empty-state p {
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>Noether</span> · Equation Visualizer</div>
+</header>
+
+<main>
+  <!-- ── Chart panel ──────────────────────────────────────────── -->
+  <section class="chart-panel">
+    <div class="input-row">
+      <input id="eq-input"
+             type="text"
+             placeholder="Enter any equation — LaTeX, natural language, spoken description…"
+             autocomplete="off" />
+      <button class="btn" id="viz-btn" onclick="visualize()">Visualize</button>
+    </div>
+
+    <div class="examples" id="examples"></div>
+
+    <div class="status" id="status"></div>
+    <div id="eq-display"></div>
+
+    <div id="chart">
+      <div class="empty-state">
+        <div class="icon">∿</div>
+        <p>Type an equation above to see it come alive.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-section" id="info-section" style="display:none">
+      <h3>Equation</h3>
+      <div id="title-display"></div>
+      <div id="description"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Parameters</h3>
+      <div id="params">
+        <div id="no-params" style="display:none">No free parameters.</div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+  // ── Examples ───────────────────────────────────────────────────────
+  const EXAMPLES = [
+    "Hawking radiation spectrum",
+    "Planck blackbody spectrum",
+    "Lorentz factor γ(v/c)",
+    "Quantum harmonic oscillator ψ_n(x)",
+    "Schwarzschild metric g_tt",
+    "Fermi-Dirac distribution",
+    "Gravitational wave strain h(t) from binary inspiral",
+    "Hydrogen 2p radial wavefunction R_21(r)",
+    "Penrose diagram lightcone",
+    "Lissajous curve",
+  ];
+
+  const examplesEl = document.getElementById('examples');
+  EXAMPLES.forEach(ex => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = ex;
+    chip.onclick = () => { document.getElementById('eq-input').value = ex; visualize(); };
+    examplesEl.appendChild(chip);
+  });
+
+  // ── State ──────────────────────────────────────────────────────────
+  let currentSpec = null;
+  let currentParams = {};
+  let evalTimer = null;
+
+  // ── KaTeX render (after scripts load) ─────────────────────────────
+  function renderLatex(latex) {
+    const el = document.getElementById('eq-display');
+    if (!latex || typeof katex === 'undefined') {
+      el.textContent = '';
+      el.classList.remove('has-eq');
+      return;
+    }
+    try {
+      katex.render(latex, el, { displayMode: true, throwOnError: false });
+      el.classList.add('has-eq');
+    } catch {
+      el.textContent = latex;
+      el.classList.add('has-eq');
+    }
+  }
+
+  // ── Main visualize call ────────────────────────────────────────────
+  async function visualize() {
+    const eq = document.getElementById('eq-input').value.trim();
+    if (!eq) return;
+
+    setStatus('Interpreting equation…', 'loading');
+    document.getElementById('viz-btn').disabled = true;
+    clearDisplay();
+
+    try {
+      const resp = await fetch('/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ equation: eq }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        setStatus(err.detail || 'Server error', 'error');
+        return;
+      }
+
+      const data = await resp.json();
+      currentSpec = data.spec;
+      currentParams = {};
+      for (const p of (currentSpec.parameters || [])) {
+        currentParams[p.name] = p.default;
+      }
+
+      renderChart(data.figure);
+      renderParams(currentSpec.parameters || []);
+      renderLatex(currentSpec.latex || '');
+
+      const infoSec = document.getElementById('info-section');
+      infoSec.style.display = '';
+      document.getElementById('title-display').textContent = currentSpec.title || '';
+      document.getElementById('description').textContent = currentSpec.description || '';
+      setStatus('');
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, 'error');
+    } finally {
+      document.getElementById('viz-btn').disabled = false;
+    }
+  }
+
+  // ── Chart render / update ─────────────────────────────────────────
+  function renderChart(figureData) {
+    const layout = {
+      ...(figureData.layout || {}),
+      paper_bgcolor: 'rgba(8,8,18,0)',
+      plot_bgcolor: 'rgba(13,13,31,0.5)',
+      font: { color: '#CBD5E1', family: 'Inter, system-ui, sans-serif', size: 12 },
+    };
+    Plotly.react('chart', figureData.data || [], layout, {
+      responsive: true,
+      displayModeBar: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d'],
+    });
+  }
+
+  // ── Parameters / sliders ──────────────────────────────────────────
+  function renderParams(params) {
+    const container = document.getElementById('params');
+    const noParams = document.getElementById('no-params');
+    container.innerHTML = '';
+    container.appendChild(noParams);
+
+    if (params.length === 0) {
+      noParams.style.display = '';
+      return;
+    }
+    noParams.style.display = 'none';
+
+    params.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'param-row';
+
+      const header = document.createElement('div');
+      header.className = 'param-header';
+
+      const lbl = document.createElement('span');
+      lbl.className = 'param-label';
+      lbl.textContent = p.label || p.name;
+
+      const val = document.createElement('span');
+      val.className = 'param-value';
+      val.textContent = p.default.toPrecision(4);
+
+      header.appendChild(lbl);
+      header.appendChild(val);
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = p.min;
+      slider.max = p.max;
+      slider.step = p.step || ((p.max - p.min) / 200);
+      slider.value = p.default;
+
+      slider.oninput = () => {
+        const v = parseFloat(slider.value);
+        currentParams[p.name] = v;
+        val.textContent = v.toPrecision(4);
+        scheduleEval();
+      };
+
+      const bounds = document.createElement('div');
+      bounds.className = 'param-bounds';
+      bounds.innerHTML = `<span>${p.min}</span><span>${p.max}</span>`;
+
+      row.appendChild(header);
+      row.appendChild(slider);
+      row.appendChild(bounds);
+      container.appendChild(row);
+    });
+  }
+
+  function scheduleEval() {
+    clearTimeout(evalTimer);
+    evalTimer = setTimeout(reEvaluate, 60);
+  }
+
+  async function reEvaluate() {
+    if (!currentSpec) return;
+    try {
+      const resp = await fetch('/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spec: currentSpec, params: currentParams }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const chartEl = document.getElementById('chart');
+        Plotly.react('chart', data.figure.data, chartEl.layout, {
+          responsive: true, displayModeBar: true, displaylogo: false,
+          modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d'],
+        });
+      }
+    } catch { /* silent on slider updates */ }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  function clearDisplay() {
+    Plotly.purge('chart');
+    document.getElementById('chart').innerHTML = '';
+    document.getElementById('params').innerHTML = '';
+    document.getElementById('params').appendChild(document.getElementById('no-params') || (() => {
+      const d = document.createElement('div'); d.id = 'no-params'; return d;
+    })());
+    document.getElementById('eq-display').textContent = '';
+    document.getElementById('eq-display').classList.remove('has-eq');
+    document.getElementById('info-section').style.display = 'none';
+    currentSpec = null;
+    currentParams = {};
+  }
+
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  document.getElementById('eq-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') visualize();
+  });
+</script>
+</body>
+</html>

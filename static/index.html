@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jane</title>
+  <link rel="stylesheet" href="/jarvis.css" />
+  <link rel="stylesheet" href="/spacetime.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <header>
+    <div class="brand">J A N E</div>
+    <div class="subbrand">Daughter of Jarvis</div>
+  </header>
+
+  <main>
+    <section class="orb-stage">
+      <canvas id="orb" width="640" height="640"></canvas>
+      <div class="status" id="status">— connecting —</div>
+      <button id="pause-btn" class="pause-btn" title="Pause / resume — or press Space">
+        <svg id="pause-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <!-- Mic icon (default) -->
+          <path id="mic-path" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z" fill="currentColor"/>
+          <!-- Strikethrough line (shown only when paused) -->
+          <line id="mute-line" x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"/>
+        </svg>
+        <span id="pause-label">MIC ACTIVE</span>
+      </button>
+    </section>
+
+    <aside class="transcript-panel">
+      <div class="panel-title">TRANSCRIPT</div>
+      <ol id="transcript"></ol>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+    <div class="tools-strip">
+      <span class="tool-slot">⚡ run_shell · mac_keystroke · type_text · open_app · open_in_vscode · vscode_command · read_file · take_screenshot</span>
+    </div>
+  </footer>
+
+  <!-- Spacetime fullscreen overlay (hidden by default) -->
+  <div id="spacetime-overlay" class="spacetime-overlay hidden">
+    <canvas id="spacetime-canvas"></canvas>
+    <div class="spacetime-hud">
+      <div class="spacetime-scene-label">
+        <span class="spacetime-scene-name" id="spacetime-scene-name">BLACK HOLE</span>
+        <span class="spacetime-scene-sub" id="spacetime-scene-sub">SCHWARZSCHILD GEOMETRY</span>
+      </div>
+      <div class="spacetime-meta">
+        <span id="spacetime-speed">1.0×</span>
+        <span class="dot">·</span>
+        <span id="spacetime-status">RUNNING</span>
+      </div>
+    </div>
+    <div class="spacetime-hint">say "close spacetime" to exit · or press ESC</div>
+  </div>
+
+  <button id="terminate-btn" class="terminate-btn" title="Hold to terminate Zoe">
+    <svg class="terminate-ring" viewBox="0 0 48 48" aria-hidden="true">
+      <circle class="terminate-ring-bg" cx="24" cy="24" r="22" fill="none" stroke-width="2"/>
+      <circle class="terminate-ring-fill" cx="24" cy="24" r="22" fill="none" stroke-width="2"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23" transform="rotate(-90 24 24)"/>
+    </svg>
+    <span class="terminate-label">HOLD TO TERMINATE</span>
+  </button>
+
+  <script src="/jarvis.js"></script>
+  <script type="module" src="/spacetime.js"></script>
+</body>
+</html>
