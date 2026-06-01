@@ -347,7 +347,7 @@
     clearDisplay();
 
     try {
-      const resp = await fetch('/interpret', {
+      const resp = await fetch('interpret', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ equation: eq }),
@@ -462,7 +462,7 @@
   async function reEvaluate() {
     if (!currentSpec) return;
     try {
-      const resp = await fetch('/evaluate', {
+      const resp = await fetch('evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spec: currentSpec, params: currentParams }),
@@ -502,6 +502,16 @@
   document.getElementById('eq-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') visualize();
   });
+
+  // Pre-fill and auto-visualize from ?q=… — used when Emmy opens this page
+  // by voice with an equation already in hand.
+  (function () {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) {
+      document.getElementById('eq-input').value = q;
+      visualize();
+    }
+  })();
 </script>
 </body>
 </html>

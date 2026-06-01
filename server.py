@@ -12,6 +12,7 @@ import signal
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from controls import Controls
@@ -79,6 +80,20 @@ def create_app(bus: StateBus, controls: Controls) -> FastAPI:
             send_task.cancel()
             recv_task.cancel()
             bus.unsubscribe(queue)
+
+    # Mount the equation visualizer as a sub-app at /equations. Must be
+    # registered before the catch-all "/" static mount below, or that mount
+    # would shadow it. Imported lazily so a missing ANTHROPIC_API_KEY only
+    # bites when the server actually boots (not at module import time).
+    from equation_viz.app import app as equation_app
+
+    # Bare /equations (no trailing slash) doesn't reach the sub-app's "/"
+    # route, so send it to /equations/ where relative asset/API paths resolve.
+    @app.get("/equations")
+    async def _equations_redirect() -> RedirectResponse:
+        return RedirectResponse(url="/equations/")
+
+    app.mount("/equations", equation_app, name="equations")
 
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 

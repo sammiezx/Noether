@@ -24,8 +24,9 @@ text-to-speech, and speaker verification all happen on-device.
   light cones, gravitational waves, N-body, spacetime curvature) rendered with Three.js.
 - **Web UI.** A browser dashboard shows live state (listening / thinking / speaking),
   a mic amplitude meter, the running transcript, tool calls, and a pause button.
-- **Equation visualizer** (companion app). Type any equation — natural language, LaTeX,
-  or code — and Claude turns it into an interactive Plotly figure with live sliders.
+- **Equation visualizer.** Type any equation — natural language, LaTeX, or code — and
+  Claude turns it into an interactive Plotly figure with live sliders. Served by the main
+  app at `/equations`, and Emmy can open it by voice ("graph the Planck distribution").
 
 ---
 
@@ -83,13 +84,14 @@ reset phrase ("forget my voice", "re-enroll", …) to wipe and re-record your vo
 | `state_bus.py` | Thread-safe pub/sub bridging the loop thread and asyncio |
 | `controls.py` | Thread-safe pause/resume flag |
 | `static/` | Browser UI (HTML/CSS/JS) + `spacetime.js` Three.js scenes |
-| `equation_viz/` | Standalone equation→Plotly visualizer (separate app) |
+| `equation_viz/` | Equation→Plotly visualizer, mounted into the main server at `/equations` (also runs standalone) |
 
 ### Tools available to Claude
 
 `run_shell`, `mac_keystroke`, `type_text`, `open_app`, `open_in_vscode`,
-`vscode_command`, `read_file`, `take_screenshot`, and `spacetime` (open/close/switch
-scene/speed/pause/rotate/zoom the visualization).
+`vscode_command`, `read_file`, `take_screenshot`, `spacetime` (open/close/switch
+scene/speed/pause/rotate/zoom the visualization), and `graph_equation` (open the equation
+visualizer, optionally pre-loaded with an equation).
 
 > ⚠️ These tools give the assistant real control of your machine — arbitrary shell
 > execution, keystrokes, and file reads. Run it only on a machine you trust, and review
@@ -107,7 +109,6 @@ Requires **macOS on Apple Silicon** (for `mlx-whisper` and the `say` voices) and
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install resemblyzer        # speaker verification (not yet in requirements.txt)
 
 # 2. Provide your Anthropic API key
 cp .env.example .env
@@ -124,14 +125,18 @@ First boot downloads the Whisper model (~800 MB) and prompts you to enroll your 
 Grant the terminal app **Microphone** and **Accessibility** permissions in
 System Settings → Privacy & Security (Accessibility is needed for the keystroke tools).
 
-### Equation visualizer (optional, standalone)
+### Equation visualizer
+
+It's served by the main app at `http://127.0.0.1:8765/equations/` — just say something
+like "graph sin(x)/x" and Emmy opens it (via the `graph_equation` tool), or browse there
+directly. Claude (`interpreter.py`) parses the equation into a spec and `plotter.py`
+renders an interactive Plotly figure with parameter sliders.
+
+It also still runs standalone if you want it on its own port:
 
 ```bash
 python equation_viz/app.py     # serves http://127.0.0.1:8766/
 ```
-
-Type an equation in the page; Claude (`interpreter.py`) parses it into a spec and
-`plotter.py` renders an interactive Plotly figure with parameter sliders.
 
 ---
 
@@ -150,7 +155,5 @@ Type an equation in the page; Claude (`interpreter.py`) parses it into a spec an
 
 - `.env` (your API key) and `.voice_print.npy` (your voice biometric) are gitignored —
   keep them out of version control.
-- `resemblyzer` is imported by `voice_id.py` but not currently listed in
-  `requirements.txt`; install it separately (see Setup).
 - The assistant persona is **Emmy** (a.k.a. **Noether**). The macOS voice she speaks in
   happens to be named `Zoe` — that's a system voice, not the assistant's name.

@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
+from urllib.parse import quote
 
 if TYPE_CHECKING:
     from state_bus import StateBus
@@ -324,6 +325,32 @@ def _spacetime_ack(action: str, scene: str | None, value: float | None) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 10. graph_equation  (open the equation visualizer)
+# ---------------------------------------------------------------------------
+
+# The equation visualizer is mounted into the main server at /equations
+# (see server.py). Keep the port in sync with main.PORT.
+_EQUATIONS_URL = "http://127.0.0.1:8765/equations/"
+
+
+def graph_equation(equation: str | None = None) -> str:
+    """Open the equation visualizer in the browser, optionally pre-loaded.
+
+    If `equation` is given it's passed via ?q=… so the page auto-interprets
+    and plots it on load.
+    """
+    url = _EQUATIONS_URL
+    if equation and equation.strip():
+        url += f"?q={quote(equation.strip())}"
+    proc = subprocess.run(["open", url], capture_output=True, text=True, timeout=10)
+    if proc.returncode != 0:
+        return f"Failed to open the equation visualizer: {proc.stderr.strip() or 'unknown error'}"
+    if equation and equation.strip():
+        return f"Opened the equation visualizer with: {equation.strip()}"
+    return "Opened the equation visualizer."
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -337,6 +364,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "read_file": read_file,
     "take_screenshot": take_screenshot,
     "spacetime": spacetime,
+    "graph_equation": graph_equation,
 }
 
 
@@ -534,6 +562,32 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 },
             },
             "required": ["action"],
+        },
+    },
+    {
+        "name": "graph_equation",
+        "description": (
+            "Open the interactive equation visualizer in the user's browser. "
+            "Use this whenever the user wants to see, plot, graph, or visualize "
+            "an equation or function (e.g. 'graph the Hawking spectrum', 'plot "
+            "sin(x)/x', 'show me the Planck distribution'). Pass the equation in "
+            "`equation` (natural language, LaTeX, or a numpy-style expression are "
+            "all fine) and it loads pre-filled and auto-plotted, with sliders for "
+            "any free parameters. Omit `equation` to just open a blank visualizer. "
+            "This is for plotting math/functions — for the 3D physics scenes "
+            "(black holes, light cones, etc.) use the `spacetime` tool instead."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "equation": {
+                    "type": "string",
+                    "description": (
+                        "The equation or function to plot. Natural language, "
+                        "LaTeX, or a numpy expression. Optional."
+                    ),
+                },
+            },
         },
     },
 ]

@@ -2,6 +2,7 @@ anthropic>=0.40.0
 mlx-whisper>=0.4.0
 sounddevice>=0.4.6
 numpy>=1.24.0
+resemblyzer>=0.1.1
 python-dotenv>=1.0.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
