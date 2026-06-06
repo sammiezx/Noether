@@ -101,6 +101,7 @@ def listen_during_tts(
     on_frame: FrameCallback | None = None,
     interrupt_threshold_mult: float = 4.0,
     interrupt_min_frames: int = 6,
+    interrupt_floor: float = 0.012,
     should_cancel: Callable[[], bool] | None = None,
     diagnostic: Callable[[str], None] | None = None,
 ) -> bool:
@@ -110,8 +111,12 @@ def listen_during_tts(
     speaker bleed (Emmy hearing her own voice). Returns when TTS ends
     naturally (False) or the user has spoken above threshold for
     `interrupt_min_frames * FRAME_DURATION_MS` ms (True).
+
+    `interrupt_floor` is the absolute minimum threshold — in a quiet room the
+    noise-floor-relative threshold collapses to near zero, so this floor is
+    what actually keeps Emmy's own speaker bleed from reading as a barge-in.
     """
-    threshold = max(noise_floor * interrupt_threshold_mult, 0.012)
+    threshold = max(noise_floor * interrupt_threshold_mult, interrupt_floor)
     consecutive_loud = 0
     peak_energy = 0.0
 
@@ -131,6 +136,11 @@ def listen_during_tts(
             if energy > threshold:
                 consecutive_loud += 1
                 if consecutive_loud >= interrupt_min_frames:
+                    if diagnostic is not None:
+                        diagnostic(
+                            f"BARGE-IN fired: energy={energy:.4f} > thr={threshold:.4f} "
+                            f"for {interrupt_min_frames} frames"
+                        )
                     return True
             else:
                 consecutive_loud = 0

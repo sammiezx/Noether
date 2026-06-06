@@ -13,6 +13,7 @@ On first launch, the user is asked to enroll their voice.
 
 from __future__ import annotations
 
+import sys
 import time
 import traceback
 
@@ -163,6 +164,15 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                 is_tts_active=tts.is_active,
                 on_frame=publish_amplitude,
                 should_cancel=lambda: controls.paused,
+                # Less trigger-happy: a higher bar and a longer sustain so
+                # Emmy's own voice bleeding from the speakers doesn't read as
+                # the user interrupting. Real barge-in easily clears this.
+                interrupt_threshold_mult=6.0,
+                interrupt_min_frames=12,
+                # Measured speaker bleed in a quiet room peaks ~0.04; this floor
+                # sits well above it so only a real (louder) interruption counts.
+                interrupt_floor=0.07,
+                diagnostic=lambda m: print(f"[barge-in] {m}", file=sys.stderr, flush=True),
             )
             if interrupted:
                 tts.stop()
