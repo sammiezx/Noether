@@ -109,6 +109,27 @@ RATES: dict[str, int] = {
     "ironman": 205,
 }
 
+# Per-persona neural-voice overrides. Any persona listed here uses the Kokoro
+# engine (neural_tts_server.py) instead of macOS `say`; everything else falls
+# back to `say` with the voice list + rate above. Tuned by ear:
+# Batman = deep British voice (bm_lewis), pitched down and darkened for a
+# low, hushed growl.
+NEURAL_TTS: dict[str, dict] = {
+    # Batman: deep British voice, pitched down + darkened for a low, hushed growl.
+    "batman": {
+        "engine": "kokoro", "voice": "bm_lewis",
+        "speed": 0.85, "pitch": -3, "lowpass": 3200, "gain": 0.85,
+    },
+    # The rest use clean natural voices with minimal processing — over-processing
+    # (pitch/lowpass) muddied them; character comes from the voice + pace + words.
+    "einstein": {"engine": "kokoro", "voice": "bm_fable", "speed": 0.93},
+    "shiva":    {"engine": "kokoro", "voice": "am_onyx", "speed": 0.80, "pitch": -1},
+    "krishna":  {"engine": "kokoro", "voice": "am_michael", "speed": 1.0},
+    "durga":    {"engine": "kokoro", "voice": "af_bella", "speed": 0.96, "pitch": -1},
+    "spiderman":{"engine": "kokoro", "voice": "am_puck", "speed": 1.08, "pitch": 1},
+    "ironman":  {"engine": "kokoro", "voice": "am_adam", "speed": 1.06},
+}
+
 _current = DEFAULT
 
 
@@ -147,3 +168,15 @@ def voice(key: str | None = None) -> list[str]:
 
 def rate(key: str | None = None) -> int:
     return RATES.get(key or _current, 185)
+
+
+def tts_config(key: str | None = None) -> dict:
+    """Engine + voice config for the persona, consumed by tts.TTS.configure().
+
+    Neural personas (NEURAL_TTS) use Kokoro; the rest use macOS `say` with
+    their voice list and rate.
+    """
+    k = key or _current
+    if k in NEURAL_TTS:
+        return NEURAL_TTS[k]
+    return {"engine": "say", "voices": voice(k), "rate": rate(k)}

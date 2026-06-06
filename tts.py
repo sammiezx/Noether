@@ -1,13 +1,34 @@
-"""Text-to-speech via macOS `say`. Picks the highest-quality variant
-available for the chosen voice. Supports both blocking (`speak`) and
-non-blocking (`speak_async`) playback so the caller can interrupt
-mid-utterance — used for barge-in detection.
+"""Text-to-speech with two engines, chosen per persona:
+
+  - "say"    — macOS `say` (instant, used for Emmy and most personas)
+  - "kokoro" — neural Kokoro-82M via a persistent helper process (neural_tts_server.py)
+               running in the 3.12 .venv-tts, for voices that need to sound
+               genuinely human (e.g. a deep, hushed Batman).
+
+Either way, playback is a killable subprocess (`say` or `afplay`), so the
+barge-in detector can stop speech mid-utterance. `configure(cfg)` selects the
+engine + voice before each utterance; the neural helper is spawned lazily on
+first use and kept warm so the model only loads once.
 """
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
+import sys
+import tempfile
 from functools import lru_cache
+from pathlib import Path
+
+_REPO = Path(__file__).resolve().parent
+_VENV_TTS_PY = _REPO / ".venv-tts" / "bin" / "python"
+_NEURAL_SERVER = _REPO / "neural_tts_server.py"
+_KOKORO_MODEL = _REPO / "tts_models" / "kokoro-v1.0.onnx"
+_KOKORO_VOICES = _REPO / "tts_models" / "voices-v1.0.bin"
+_NEURAL_WAV = Path(tempfile.gettempdir()) / "noether_neural.wav"
+
+DEFAULT_CFG = {"engine": "say", "voices": ["Zoe", "Samantha"], "rate": 185}
 
 
 @lru_cache(maxsize=1)
@@ -27,7 +48,6 @@ def _resolve(preferred: str) -> str | None:
         if variant in catalog:
             return variant
     for line in catalog.splitlines():
-        # Each line: 'Name                 en_US    # Sample sentence.'
         name = line.split("  ")[0].strip()
         if name == preferred:
             return preferred
@@ -38,19 +58,37 @@ def _pick_voice(preferred: str) -> str:
     return _resolve(preferred) or preferred
 
 
+def neural_available() -> bool:
+    """True if the 3.12 helper env and Kokoro model files are present."""
+    return _VENV_TTS_PY.exists() and _KOKORO_MODEL.exists() and _KOKORO_VOICES.exists()
+
+
 class TTS:
     def __init__(self, voice: str = "Zoe", rate: int = 185):
         self.voice = _pick_voice(voice)
         self._default = self.voice
         self.rate = rate
-        self._proc: subprocess.Popen | None = None
+        self._cfg = dict(DEFAULT_CFG)
+        self._proc: subprocess.Popen | None = None       # current playback (say/afplay)
+        self._neural: subprocess.Popen | None = None      # persistent Kokoro server
+
+    # ---- configuration -----------------------------------------------------
+
+    def configure(self, cfg: dict) -> None:
+        """Select engine + voice for subsequent utterances.
+
+        `cfg` for "say":    {"engine":"say", "voices":[...], "rate":int}
+        `cfg` for "kokoro": {"engine":"kokoro", "voice":str, "speed":float,
+                             "pitch":semitones, "lowpass":hz, "gain":float}
+        """
+        if not cfg:
+            cfg = DEFAULT_CFG
+        self._cfg = cfg
+        if cfg.get("engine", "say") == "say":
+            self.set_voice(cfg.get("voices", [self._default]))
+            self.rate = int(cfg.get("rate", self.rate))
 
     def set_voice(self, candidates: str | list[str]) -> str:
-        """Switch to the first installed voice in `candidates`.
-
-        Accepts a single name or an ordered preference list. If none are
-        installed, keeps the default voice. Returns the voice now in use.
-        """
         if isinstance(candidates, str):
             candidates = [candidates]
         for name in candidates:
@@ -61,7 +99,67 @@ class TTS:
         self.voice = self._default
         return self.voice
 
-    def _cmd(self, text: str) -> list[str]:
+    # ---- neural helper -----------------------------------------------------
+
+    def _ensure_neural(self) -> bool:
+        """Spawn the Kokoro helper if needed; return True if it's ready."""
+        if self._neural is not None and self._neural.poll() is None:
+            return True
+        if not neural_available():
+            return False
+        try:
+            self._neural = subprocess.Popen(
+                [str(_VENV_TTS_PY), str(_NEURAL_SERVER),
+                 str(_KOKORO_MODEL), str(_KOKORO_VOICES)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL, text=True, bufsize=1,
+            )
+        except Exception:
+            self._neural = None
+            return False
+        # Wait for the model to load (READY), bounded so we never hang forever.
+        for _ in range(600):  # ~60s budget for first model load
+            line = self._neural.stdout.readline()
+            if not line:
+                break
+            if line.strip() == "READY":
+                return True
+        self._neural = None
+        return False
+
+    def _render_neural(self, text: str) -> str | None:
+        """Render `text` to a wav via the helper. Returns path or None on failure."""
+        if not self._ensure_neural():
+            return None
+        cfg = self._cfg
+        req = {
+            "text": text,
+            "voice": cfg.get("voice", "am_onyx"),
+            "speed": cfg.get("speed", 1.0),
+            "pitch": cfg.get("pitch", 0),
+            "lowpass": cfg.get("lowpass"),
+            "gain": cfg.get("gain", 1.0),
+            "out": str(_NEURAL_WAV),
+        }
+        try:
+            self._neural.stdin.write(json.dumps(req) + "\n")
+            self._neural.stdin.flush()
+            while True:
+                line = self._neural.stdout.readline()
+                if not line:
+                    return None
+                line = line.strip()
+                if line == "OK":
+                    return str(_NEURAL_WAV)
+                if line.startswith("ERR"):
+                    print(f"[neural-tts] {line}", file=sys.stderr, flush=True)
+                    return None
+        except Exception:
+            return None
+
+    # ---- playback ----------------------------------------------------------
+
+    def _say_cmd(self, text: str) -> list[str]:
         return ["say", "-v", self.voice, "-r", str(self.rate), text]
 
     def speak(self, text: str) -> None:
@@ -69,7 +167,17 @@ class TTS:
         text = text.strip()
         if not text:
             return
-        self._proc = subprocess.Popen(self._cmd(text))
+        if self._cfg.get("engine") == "kokoro":
+            wav = self._render_neural(text)
+            if wav and os.path.exists(wav):
+                self._proc = subprocess.Popen(["afplay", wav])
+                try:
+                    self._proc.wait()
+                finally:
+                    self._proc = None
+                return
+            # fall through to `say` if neural failed
+        self._proc = subprocess.Popen(self._say_cmd(text))
         try:
             self._proc.wait()
         finally:
@@ -80,8 +188,14 @@ class TTS:
         text = text.strip()
         if not text:
             return
-        self.stop()  # clear any prior process
-        self._proc = subprocess.Popen(self._cmd(text))
+        self.stop()
+        if self._cfg.get("engine") == "kokoro":
+            wav = self._render_neural(text)
+            if wav and os.path.exists(wav):
+                self._proc = subprocess.Popen(["afplay", wav])
+                return
+            # fall through to `say` if neural failed
+        self._proc = subprocess.Popen(self._say_cmd(text))
 
     def is_active(self) -> bool:
         return self._proc is not None and self._proc.poll() is None

@@ -1,0 +1,7 @@
+# Neural TTS helper env (Kokoro-82M). Installed into a SEPARATE Python 3.12
+# venv (.venv-tts), NOT the main 3.14 app env — these wheels don't build on
+# 3.14. See setup_neural_tts.sh, and tts.py / neural_tts_server.py for usage.
+kokoro-onnx>=0.5.0
+soundfile>=0.13.0
+librosa>=0.11.0
+phonemizer-fork>=3.3.0

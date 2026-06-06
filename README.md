@@ -81,12 +81,13 @@ reset phrase ("forget my voice", "re-enroll", …) to wipe and re-record your vo
 | `tools.py` | The tools Claude can call (see below) |
 | `audio.py` | Mic capture, VAD, noise calibration, barge-in detection |
 | `stt.py` | Speech-to-text (mlx-whisper) |
-| `tts.py` | Text-to-speech (macOS `say`) with async/interruptible playback |
+| `tts.py` | Text-to-speech router: macOS `say` (Emmy) or neural Kokoro (characters), async/interruptible |
 | `voice_id.py` | Speaker enrollment + verification (Resemblyzer) |
 | `server.py` | FastAPI app: static UI + bidirectional WebSocket |
 | `state_bus.py` | Thread-safe pub/sub bridging the loop thread and asyncio |
 | `controls.py` | Thread-safe pause/resume flag |
-| `persona.py` | Persona definitions (style + voice + rate) and active-persona state |
+| `persona.py` | Persona definitions (style + voice/engine) and active-persona state |
+| `neural_tts_server.py` | Persistent Kokoro renderer (runs in `.venv-tts`); used by `tts.py` for character voices |
 | `static/` | Browser UI (HTML/CSS/JS) + `spacetime.js` Three.js scenes |
 | `equation_viz/` | Equation→Plotly visualizer, mounted into the main server at `/equations` (also runs standalone) |
 
@@ -130,6 +131,21 @@ First boot downloads the Whisper model (~800 MB) and prompts you to enroll your 
 Grant the terminal app **Microphone** and **Accessibility** permissions in
 System Settings → Privacy & Security (Accessibility is needed for the keystroke tools).
 
+### Neural voices (for the character personas)
+
+The character personas (Batman, Iron Man, etc.) use a local neural TTS (Kokoro-82M) that
+sounds human. It needs its own Python 3.12 env because the neural stack doesn't build on
+3.14. One-time setup (free, offline afterward):
+
+```bash
+brew install python@3.12        # if you don't have python3.12
+./setup_neural_tts.sh           # creates .venv-tts + downloads the ~340MB model
+```
+
+This is **optional** — without it, Emmy still works and characters fall back to macOS
+`say`. Deps are pinned in [requirements-tts.txt](requirements-tts.txt); the env
+(`.venv-tts/`) and model (`tts_models/`) are gitignored.
+
 ### Equation visualizer
 
 It's served by the main app at `http://127.0.0.1:8765/equations/` — just say something
@@ -153,19 +169,22 @@ Man" / "be Batman" / "go back to yourself" — Claude calls the `set_persona` to
 reply afterward takes on that character's style and voice. Emmy stays your assistant
 underneath, so all tools and her loyalty still work.
 
-Each persona is defined in [persona.py](persona.py) by three things:
-- a **style** block (the personality, layered onto the system prompt),
-- a **voice** — an ordered list of macOS `say` voices; the first one installed wins, with
-  a graceful fallback to Emmy's default if none are present,
-- a **rate** (words/min), so personas stay audibly distinct even when two fall back to the
-  same installed voice (e.g. a slow, heavy Batman vs. a fast, slick Iron Man).
+Each persona is defined in [persona.py](persona.py) by a **style** block (the personality,
+layered onto the system prompt) and a **voice**.
 
-It will adopt each character's *manner of speaking* convincingly, but it won't *mimic the
-real person's voice* — macOS system voices only differ in timbre and accent. For more
-distinct voices, install extras under **System Settings → Accessibility → Spoken Content →
-System Voices** (e.g. `Tom`, `Aaron`, `Lee`, `Veena`) and they'll be picked up
-automatically. The religious figures (Shiva, Krishna, Durga) are written in a reverent,
-dignified register.
+**Two voice engines** ([tts.py](tts.py) routes between them per persona):
+- **Emmy** uses macOS `say` (the `Zoe` voice) — instant, and already natural.
+- **Every character** (Einstein, Shiva, Krishna, Durga, Batman, Spider-Man, Iron Man) uses
+  **Kokoro-82M**, a local neural TTS that sounds genuinely human — far better than the
+  robotic deep `say` voices. Each maps to a tuned Kokoro voice (e.g. Batman = a deep
+  British voice pitched down and darkened into a hushed growl; Spider-Man = a fast, young
+  voice). The neural model runs in a small separate process and is kept warm, so after a
+  one-time ~5 s load on first use, each line takes ~1–2 s before it speaks.
+
+The neural voices need a one-time setup (a dedicated Python 3.12 env + a ~340 MB model
+download) — see **Setup → Neural voices** below. If that env is missing, characters fall
+back to macOS `say` automatically, so the app still runs. The religious figures (Shiva,
+Krishna, Durga) are written in a reverent, dignified register.
 
 ---
 

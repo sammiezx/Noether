@@ -1,4 +1,7 @@
 .venv/
+.venv-tts/
+tts_models/
+*.wav
 __pycache__/
 *.pyc
 *.pyo
