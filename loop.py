@@ -168,7 +168,11 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                 # Emmy's own voice bleeding from the speakers doesn't read as
                 # the user interrupting. Real barge-in easily clears this.
                 interrupt_threshold_mult=6.0,
-                interrupt_min_frames=12,
+                # 6 frames (~180ms) above the floor: short enough that a quick
+                # "stop"/"Emmy" registers, long enough that brief speaker-bleed
+                # transients don't. The floor (not the sustain) rejects the
+                # steady self-bleed.
+                interrupt_min_frames=6,
                 # Measured speaker bleed in a quiet room peaks ~0.04; this floor
                 # sits well above it so only a real (louder) interruption counts.
                 interrupt_floor=0.07,
