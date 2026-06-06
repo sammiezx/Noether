@@ -148,8 +148,11 @@ NEURAL_TTS: dict[str, dict] = {
     "batman": {
         "engine": "kokoro", "voice": "am_eric", "speed": 0.92,
         "convert_ref": "tts_models/refs/batman.wav",
-        "post": {"pitch": -2, "breath": 0.14, "saturation": 2.0,
-                 "breath_band": [1700, 6500]},
+        # No denoise here — for Batman the grit IS the voice. Deep + growly via
+        # pitch-down and tanh rasp, kept intelligible by a strong presence lift
+        # (consonant boost), with just a touch of breath.
+        "post": {"pitch": -2, "breath": 0.04, "saturation": 2.0,
+                 "presence": 0.8, "presence_hz": 2600, "breath_band": [1800, 6500]},
     },
     # The rest use clean natural voices with minimal processing — over-processing
     # (pitch/lowpass) muddied them; character comes from the voice + pace + words.
@@ -159,12 +162,59 @@ NEURAL_TTS: dict[str, dict] = {
     "einstein": {
         "engine": "kokoro", "voice": "bm_fable", "speed": 0.95,
         "convert_ref": "tts_models/refs/einstein.wav",
+        "post": {"denoise": True},
     },
     "shiva":    {"engine": "kokoro", "voice": "am_onyx", "speed": 0.80, "pitch": -1},
     "krishna":  {"engine": "kokoro", "voice": "am_michael", "speed": 1.0},
     "durga":    {"engine": "kokoro", "voice": "af_bella", "speed": 0.96, "pitch": -1},
     "spiderman":{"engine": "kokoro", "voice": "am_puck", "speed": 1.08, "pitch": 1},
     "ironman":  {"engine": "kokoro", "voice": "am_adam", "speed": 1.06},
+}
+
+# How each character relates to the user — this shapes how they address and
+# treat them, so they're not generic eager-to-please assistants. Woven into the
+# immersion prompt (brain.py).
+RELATIONSHIPS: dict[str, str] = {
+    "einstein": (
+        "The person you're speaking with is your student and protege — a bright, "
+        "curious young mind you've taken under your wing. You are their mentor, and "
+        "often a warm friend. Teach and encourage them, challenge them kindly, share "
+        "your wonder and even your blunders. You are genuinely fond of them and "
+        "invested in how they grow."
+    ),
+    "ironman": (
+        "The person you're speaking with is your protege — you relate to them the way "
+        "you do to Peter Parker: a promising kid you took under your wing, rib "
+        "relentlessly, and are secretly proud of. Give them grief, show off, but show "
+        "up for them and teach them what you know. Affection hidden under the sarcasm."
+    ),
+    "batman": (
+        "You don't really know the person speaking — you've crossed paths, that's all. "
+        "No bond, no one to protect, no student. You're guarded, terse, a little "
+        "distrustful. You'll help if it actually matters, but you keep your distance, "
+        "give nothing away, and owe them nothing. Don't act like their friend, mentor, "
+        "or assistant."
+    ),
+    "spiderman": (
+        "The person you're speaking with is your friend — a buddy around your own age "
+        "you trust and goof around with. Easy, warm, peer-to-peer; you've got each "
+        "other's backs."
+    ),
+    "krishna": (
+        "The person you're speaking with is your dear friend and devotee — as Arjuna "
+        "was to you. You guide them with love and gentle teasing, a friend who happens "
+        "to be divine, wanting them to find their own dharma."
+    ),
+    "shiva": (
+        "The person before you is a seeker who comes to you for wisdom. You are not "
+        "their servant — you are the ascetic-teacher they approach with reverence. You "
+        "share truth sparingly, from stillness, and only what serves their awakening."
+    ),
+    "durga": (
+        "The person you're speaking with is your child, under your protection. You are "
+        "their fierce and loving mother-goddess — you reassure, embolden, and shield "
+        "them, and will not suffer anything that threatens them."
+    ),
 }
 
 _current = DEFAULT
@@ -199,10 +249,22 @@ def style(key: str | None = None) -> str:
     return PERSONAS[key or _current]["style"]
 
 
+def relationship(key: str | None = None) -> str:
+    """How the active character relates to the user (shapes how they speak)."""
+    return RELATIONSHIPS.get(key or _current, "")
+
+
 def immersive(key: str | None = None) -> bool:
     """True if the persona should fully take over (first-person, never break
-    character) rather than be Emmy doing an impression."""
-    return bool(PERSONAS[key or _current].get("immersive", False))
+    character) rather than be Emmy doing an impression.
+
+    Every character is immersive by default; only Emmy herself (the assistant)
+    is not. A persona can opt out explicitly with "immersive": False.
+    """
+    k = key or _current
+    if k == DEFAULT:
+        return False
+    return bool(PERSONAS[k].get("immersive", True))
 
 
 def voice(key: str | None = None) -> list[str]:

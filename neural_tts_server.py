@@ -41,6 +41,11 @@ def _lowpass(x: np.ndarray, sr: int, cutoff: float) -> np.ndarray:
     return filtfilt(b, a, x).astype(np.float32)
 
 
+def _highpass(x: np.ndarray, sr: int, cutoff: float) -> np.ndarray:
+    b, a = butter(2, cutoff / (sr / 2), btype="high")
+    return filtfilt(b, a, x).astype(np.float32)
+
+
 def _postprocess(x: np.ndarray, sr: int, post: dict):
     """Character DSP applied AFTER voice conversion. Used for Batman's snarl:
     deepen (pitch), a breath/hiss layer that tracks the speech envelope (the
@@ -49,6 +54,15 @@ def _postprocess(x: np.ndarray, sr: int, post: dict):
     x = x.astype(np.float32)
     if x.ndim > 1:
         x = x.mean(axis=1)
+
+    # Strip the constant hiss the conversion/old-reference leaves behind.
+    # Done first, so Batman's deliberate breath layer (added below) survives.
+    if post.get("denoise"):
+        import noisereduce as nr
+        x = nr.reduce_noise(
+            y=x, sr=sr, stationary=True,
+            prop_decrease=float(post.get("denoise_amount", 0.8)),
+        ).astype(np.float32)
 
     pitch = float(post.get("pitch", 0) or 0)
     if pitch:
@@ -72,6 +86,12 @@ def _postprocess(x: np.ndarray, sr: int, post: dict):
     voiced = np.tanh(x * drive) if drive else x
     base = float(post.get("voice_gain", 0.85)) if breath else 1.0
     x = base * voiced + breath * noise_layer
+
+    # Presence: lift the consonant band so a deep/converted voice stays
+    # intelligible instead of muffled.
+    pres = float(post.get("presence", 0) or 0)
+    if pres:
+        x = x + pres * _highpass(x, sr, float(post.get("presence_hz", 2500)))
 
     cut = post.get("lowpass")
     if cut:

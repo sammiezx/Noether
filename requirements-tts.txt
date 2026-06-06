@@ -10,3 +10,4 @@ phonemizer-fork>=3.3.0
 torch>=2.11
 torchaudio>=2.11
 torchcodec>=0.14
+noisereduce>=3.0
