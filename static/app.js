@@ -21,6 +21,20 @@ const transcriptEl = document.getElementById("transcript");
 const pauseBtn = document.getElementById("pause-btn");
 const pauseLabel = document.getElementById("pause-label");
 const muteLine = document.getElementById("mute-line");
+const brandEl = document.getElementById("brand");
+const subbrandEl = document.getElementById("subbrand");
+
+// Update the header brand to reflect the active persona ("emmy" = default).
+function setPersona(key, label) {
+  if (!brandEl || !subbrandEl) return;
+  if (!key || key === "emmy") {
+    brandEl.textContent = "E M M Y";
+    subbrandEl.textContent = "The voice of Noether";
+  } else {
+    brandEl.textContent = (label || key).toUpperCase();
+    subbrandEl.textContent = "Emmy · in character";
+  }
+}
 
 let currentState = "starting";
 let amplitude = 0;
@@ -384,6 +398,9 @@ function connect() {
         break;
       case "spacetime":
         if (window.__spacetime) window.__spacetime.handle(msg);
+        break;
+      case "persona":
+        setPersona(msg.key, msg.label);
         break;
     }
   };

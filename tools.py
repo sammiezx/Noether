@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
 from urllib.parse import quote
 
+import persona
+
 if TYPE_CHECKING:
     from state_bus import StateBus
 
@@ -351,6 +353,25 @@ def graph_equation(equation: str | None = None) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 11. set_persona  (switch Emmy's speaking voice/style)
+# ---------------------------------------------------------------------------
+
+def set_persona(persona_key: str) -> str:
+    key = persona_key.strip().lower()
+    if not persona.is_valid(key):
+        return (
+            f"Unknown persona '{persona_key}'. Valid: {', '.join(persona.keys())}"
+        )
+    persona.set_current(key)
+    label = persona.label(key)
+    if _BUS is not None:
+        _BUS.publish({"type": "persona", "key": key, "label": label})
+    if key == persona.DEFAULT:
+        return "Back to myself — Emmy."
+    return f"Now speaking as {label}."
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -365,6 +386,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "take_screenshot": take_screenshot,
     "spacetime": spacetime,
     "graph_equation": graph_equation,
+    "set_persona": set_persona,
 }
 
 
@@ -588,6 +610,31 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     ),
                 },
             },
+        },
+    },
+    {
+        "name": "set_persona",
+        "description": (
+            "Change the voice/personality Emmy speaks in. Call this when the user "
+            "asks you to talk like, be, become, or switch to a character, or to go "
+            "back to your normal self. Every reply afterward takes on that "
+            "character's manner (and a matching voice) until changed again. "
+            "Personas: emmy (your normal self), einstein, shiva, krishna, durga, "
+            "batman, spiderman, ironman."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "persona_key": {
+                    "type": "string",
+                    "enum": [
+                        "emmy", "einstein", "shiva", "krishna",
+                        "durga", "batman", "spiderman", "ironman",
+                    ],
+                    "description": "Which persona to switch to.",
+                },
+            },
+            "required": ["persona_key"],
         },
     },
 ]

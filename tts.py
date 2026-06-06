@@ -7,27 +7,59 @@ mid-utterance — used for barge-in detection.
 from __future__ import annotations
 
 import subprocess
+from functools import lru_cache
 
 
-def _pick_voice(preferred: str) -> str:
+@lru_cache(maxsize=1)
+def _voice_catalog() -> str:
     try:
-        out = subprocess.run(
+        return subprocess.run(
             ["say", "-v", "?"], capture_output=True, text=True, check=True
         ).stdout
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return preferred
-    if f"{preferred} (Premium)" in out:
-        return f"{preferred} (Premium)"
-    if f"{preferred} (Enhanced)" in out:
-        return f"{preferred} (Enhanced)"
-    return preferred
+        return ""
+
+
+def _resolve(preferred: str) -> str | None:
+    """Best installed variant of `preferred` (Premium/Enhanced > base), or None."""
+    catalog = _voice_catalog()
+    for variant in (f"{preferred} (Premium)", f"{preferred} (Enhanced)"):
+        if variant in catalog:
+            return variant
+    for line in catalog.splitlines():
+        # Each line: 'Name                 en_US    # Sample sentence.'
+        name = line.split("  ")[0].strip()
+        if name == preferred:
+            return preferred
+    return None
+
+
+def _pick_voice(preferred: str) -> str:
+    return _resolve(preferred) or preferred
 
 
 class TTS:
     def __init__(self, voice: str = "Zoe", rate: int = 185):
         self.voice = _pick_voice(voice)
+        self._default = self.voice
         self.rate = rate
         self._proc: subprocess.Popen | None = None
+
+    def set_voice(self, candidates: str | list[str]) -> str:
+        """Switch to the first installed voice in `candidates`.
+
+        Accepts a single name or an ordered preference list. If none are
+        installed, keeps the default voice. Returns the voice now in use.
+        """
+        if isinstance(candidates, str):
+            candidates = [candidates]
+        for name in candidates:
+            resolved = _resolve(name)
+            if resolved:
+                self.voice = resolved
+                return self.voice
+        self.voice = self._default
+        return self.voice
 
     def _cmd(self, text: str) -> list[str]:
         return ["say", "-v", self.voice, "-r", str(self.rate), text]

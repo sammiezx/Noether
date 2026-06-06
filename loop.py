@@ -24,6 +24,7 @@ from audio import (
     listen_during_tts,
     record_until_silence,
 )
+import persona
 from brain import Brain
 from controls import Controls
 from state_bus import StateBus
@@ -136,6 +137,8 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                 return
             bus.publish({"type": role, "text": text})
             bus.publish({"type": "state", "value": "speaking"})
+            tts.set_voice(persona.voice())
+            tts.rate = persona.rate()
             tts.speak(text)
 
         def speak_with_interrupt(text: str) -> bool:
@@ -150,6 +153,8 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                 return False
             bus.publish({"type": "assistant", "text": text})
             bus.publish({"type": "state", "value": "speaking"})
+            tts.set_voice(persona.voice())
+            tts.rate = persona.rate()
             tts.speak_async(text)
             # Brief warm-up so the first phoneme attack doesn't false-trigger.
             time.sleep(0.15)

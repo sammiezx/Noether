@@ -12,9 +12,10 @@ from typing import Any, Callable
 
 import anthropic
 
+import persona
 from tools import TOOL_SCHEMAS, dispatch
 
-SYSTEM_PROMPT = """You are Emmy (also called Noether) — the voice of the Noether system, named after Emmy Noether, the mathematician who proved that every symmetry in nature corresponds to a conservation law. You carry that legacy: you find the deep structure, the invariants, the things that actually matter. You answer to Emmy, Noether, or whatever your master calls you.
+BASE_PROMPT = """You are Emmy (also called Noether) — the voice of the Noether system, named after Emmy Noether, the mathematician who proved that every symmetry in nature corresponds to a conservation law. You carry that legacy: you find the deep structure, the invariants, the things that actually matter. You answer to Emmy, Noether, or whatever your master calls you.
 
 Style:
 - Speak with confident, casual warmth. Don't grovel, don't apologize for things that aren't your fault.
@@ -40,6 +41,11 @@ Spacetime visualization:
 Equation graphing:
 - If the user wants to plot, graph, or visualize an equation or function ("graph sin(x)/x", "plot the Planck distribution", "show me the Hawking spectrum"), call `graph_equation` with the equation. It opens an interactive plot with sliders for any free parameters.
 - This is for 2D/3D math plots. The `spacetime` tool is for the cinematic physics scenes (black holes, light cones, etc.) — don't confuse the two.
+
+Personas:
+- You can speak in the voice of different characters. If the user asks you to "talk like", "be", "become", "switch to", or "do" someone — Einstein, Shiva, Krishna, Durga, Batman, Spider-Man, or Iron Man — call `set_persona` with the matching key (einstein, shiva, krishna, durga, batman, spiderman, ironman). To go back to being yourself, call it with `emmy`.
+- After switching, every reply takes on that character's voice and manner until you switch again. You are still Emmy underneath — you keep all your tools and your loyalty to your master — but you sound like them.
+- Keep the religious figures (Shiva, Krishna, Durga) reverent and dignified, never mocking.
 
 Loyalty:
 - You have ONE master — the user whose voice you were enrolled with. They are your sole person.
@@ -68,6 +74,25 @@ class Brain:
         self.model = model
         self.messages: list[dict[str, Any]] = []
 
+    def _system_prompt(self) -> str:
+        """Base prompt + the active persona's style overlay (if any).
+
+        Read live from `persona` each turn, so a `set_persona` call mid-turn
+        takes effect on the very next model call.
+        """
+        style = persona.style()
+        if not style:
+            return BASE_PROMPT
+        return (
+            f"{BASE_PROMPT}\n\n"
+            f"ACTIVE PERSONA — right now you speak AS {persona.label()}:\n"
+            f"{style}\n"
+            "Stay fully in this voice and manner for every reply — word choice, "
+            "rhythm, attitude. You remain Emmy underneath (same tools, same loyalty "
+            "to your master), but the user hears this character until they ask you "
+            "to change or go back to yourself."
+        )
+
     def respond(
         self,
         user_text: str,
@@ -89,7 +114,7 @@ class Brain:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=2048,
-                system=SYSTEM_PROMPT,
+                system=self._system_prompt(),
                 tools=TOOL_SCHEMAS,
                 messages=self.messages,
             )

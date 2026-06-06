@@ -20,6 +20,9 @@ text-to-speech, and speaker verification all happen on-device.
 - **Agentic.** The brain is Claude running a tool-use loop, so a single request can chain
   multiple actions — run a command, read a file, take a screenshot, drive VS Code — and
   narrate progress between steps.
+- **Personas.** Ask Emmy to "talk like Einstein" (or Shiva, Krishna, Durga, Batman,
+  Spider-Man, Iron Man) and she adopts that character's speaking style and a matching
+  voice, while staying your loyal, tool-wielding assistant underneath.
 - **Spacetime visualization.** Voice-controlled fullscreen physics scenes (black hole,
   light cones, gravitational waves, N-body, spacetime curvature) rendered with Three.js.
 - **Web UI.** A browser dashboard shows live state (listening / thinking / speaking),
@@ -83,6 +86,7 @@ reset phrase ("forget my voice", "re-enroll", …) to wipe and re-record your vo
 | `server.py` | FastAPI app: static UI + bidirectional WebSocket |
 | `state_bus.py` | Thread-safe pub/sub bridging the loop thread and asyncio |
 | `controls.py` | Thread-safe pause/resume flag |
+| `persona.py` | Persona definitions (style + voice + rate) and active-persona state |
 | `static/` | Browser UI (HTML/CSS/JS) + `spacetime.js` Three.js scenes |
 | `equation_viz/` | Equation→Plotly visualizer, mounted into the main server at `/equations` (also runs standalone) |
 
@@ -90,8 +94,9 @@ reset phrase ("forget my voice", "re-enroll", …) to wipe and re-record your vo
 
 `run_shell`, `mac_keystroke`, `type_text`, `open_app`, `open_in_vscode`,
 `vscode_command`, `read_file`, `take_screenshot`, `spacetime` (open/close/switch
-scene/speed/pause/rotate/zoom the visualization), and `graph_equation` (open the equation
-visualizer, optionally pre-loaded with an equation).
+scene/speed/pause/rotate/zoom the visualization), `graph_equation` (open the equation
+visualizer, optionally pre-loaded with an equation), and `set_persona` (switch Emmy's
+speaking voice/character).
 
 > ⚠️ These tools give the assistant real control of your machine — arbitrary shell
 > execution, keystrokes, and file reads. Run it only on a machine you trust, and review
@@ -137,6 +142,30 @@ It also still runs standalone if you want it on its own port:
 ```bash
 python equation_viz/app.py     # serves http://127.0.0.1:8766/
 ```
+
+---
+
+## Personas
+
+Emmy can speak as different characters: **emmy** (default), **einstein**, **shiva**,
+**krishna**, **durga**, **batman**, **spiderman**, **ironman**. Just say "talk like Iron
+Man" / "be Batman" / "go back to yourself" — Claude calls the `set_persona` tool and every
+reply afterward takes on that character's style and voice. Emmy stays your assistant
+underneath, so all tools and her loyalty still work.
+
+Each persona is defined in [persona.py](persona.py) by three things:
+- a **style** block (the personality, layered onto the system prompt),
+- a **voice** — an ordered list of macOS `say` voices; the first one installed wins, with
+  a graceful fallback to Emmy's default if none are present,
+- a **rate** (words/min), so personas stay audibly distinct even when two fall back to the
+  same installed voice (e.g. a slow, heavy Batman vs. a fast, slick Iron Man).
+
+It will adopt each character's *manner of speaking* convincingly, but it won't *mimic the
+real person's voice* — macOS system voices only differ in timbre and accent. For more
+distinct voices, install extras under **System Settings → Accessibility → Spoken Content →
+System Voices** (e.g. `Tom`, `Aaron`, `Lee`, `Veena`) and they'll be picked up
+automatically. The religious figures (Shiva, Krishna, Durga) are written in a reverent,
+dignified register.
 
 ---
 
