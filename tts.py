@@ -148,6 +148,8 @@ class TTS:
             if not ref_path.is_absolute():
                 ref_path = _REPO / ref_path
             req["convert_ref"] = str(ref_path)
+        if cfg.get("post"):
+            req["post"] = cfg["post"]
         try:
             self._neural.stdin.write(json.dumps(req) + "\n")
             self._neural.stdin.flush()

@@ -141,10 +141,15 @@ RATES: dict[str, int] = {
 # Batman = deep British voice (bm_lewis), pitched down and darkened for a
 # low, hushed growl.
 NEURAL_TTS: dict[str, dict] = {
-    # Batman: deep British voice, pitched down + darkened for a low, hushed growl.
+    # Batman: clean American words (am_eric) -> converted to Christian Bale's
+    # Batman via knn-vc -> deepened, with a breath/hiss layer that tracks the
+    # speech (the 'king-cobra' airflow) and tanh rasp. As close to the Bale
+    # snarl as free local tools get.
     "batman": {
-        "engine": "kokoro", "voice": "bm_lewis",
-        "speed": 0.85, "pitch": -3, "lowpass": 3200, "gain": 0.85,
+        "engine": "kokoro", "voice": "am_eric", "speed": 0.92,
+        "convert_ref": "tts_models/refs/batman.wav",
+        "post": {"pitch": -2, "breath": 0.14, "saturation": 2.0,
+                 "breath_band": [1700, 6500]},
     },
     # The rest use clean natural voices with minimal processing — over-processing
     # (pitch/lowpass) muddied them; character comes from the voice + pace + words.

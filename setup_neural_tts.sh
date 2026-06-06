@@ -29,6 +29,20 @@ if [ ! -f tts_models/refs/einstein.wav ]; then
     -af "highpass=f=60,loudnorm" -ar 24000 -ac 1 tts_models/refs/einstein.wav
 fi
 
+echo "==> Building the Batman voice-conversion reference (isolated Bale movie lines)"
+if [ ! -f tts_models/refs/batman.wav ]; then
+  UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605 Safari/605"
+  rm -f /tmp/bat_*.mp3 /tmp/bat_list.txt
+  # calm gravelly-Batman lines from moviesoundclips.net (no music)
+  for id in 1930 1941 2604 1927; do
+    curl -sL -A "$UA" -e "https://www.moviesoundclips.net/" \
+      -o /tmp/bat_$id.mp3 "https://www.moviesoundclips.net/download.php?id=$id&ft=mp3"
+    echo "file '/tmp/bat_$id.mp3'" >> /tmp/bat_list.txt
+  done
+  ffmpeg -y -loglevel error -f concat -safe 0 -i /tmp/bat_list.txt \
+    -af "highpass=f=70,loudnorm" -ar 24000 -ac 1 tts_models/refs/batman.wav
+fi
+
 echo "==> Done. Neural voices ready."
 echo "    Note: knn-vc (voice conversion) downloads its WavLM model via torch.hub"
 echo "    on first use of a converted voice (Einstein/Batman) — needs internet once."
