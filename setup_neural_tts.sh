@@ -19,4 +19,16 @@ base="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-
 [ -f tts_models/voices-v1.0.bin ]   || curl -L -o tts_models/voices-v1.0.bin   "$base/voices-v1.0.bin"
 [ -f tts_models/kokoro-v1.0.onnx ]  || curl -L -o tts_models/kokoro-v1.0.onnx  "$base/kokoro-v1.0.onnx"
 
-echo "==> Done. Neural voices ready (Batman, Einstein, Shiva, Krishna, Durga, Spider-Man, Iron Man)."
+echo "==> Building the Einstein voice-conversion reference from a public recording"
+mkdir -p tts_models/refs
+if [ ! -f tts_models/refs/einstein.wav ]; then
+  vid="https://archive.org/download/Albert-Einstein-Speech/Real+Speech+Of+Albert+Einstein_Voice+Of+Albert+Einstein_Einstein+Was+Speaking.mp4"
+  curl -L -o /tmp/einstein_src.mp4 "$vid"
+  # ~14s of clean speech from the opening, gently band-limited + normalised
+  ffmpeg -y -loglevel error -i /tmp/einstein_src.mp4 -ss 4 -t 14 \
+    -af "highpass=f=60,loudnorm" -ar 24000 -ac 1 tts_models/refs/einstein.wav
+fi
+
+echo "==> Done. Neural voices ready."
+echo "    Note: knn-vc (voice conversion) downloads its WavLM model via torch.hub"
+echo "    on first use of a converted voice (Einstein/Batman) — needs internet once."

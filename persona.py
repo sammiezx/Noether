@@ -148,7 +148,13 @@ NEURAL_TTS: dict[str, dict] = {
     },
     # The rest use clean natural voices with minimal processing — over-processing
     # (pitch/lowpass) muddied them; character comes from the voice + pace + words.
-    "einstein": {"engine": "kokoro", "voice": "bm_fable", "speed": 0.93},
+    # Einstein: Kokoro speaks the words clearly, then knn-vc repaints them into
+    # the real Einstein's voice (cloned from an archival recording). Clean +
+    # actually-him, instead of the gibberish you get cloning the noisy original.
+    "einstein": {
+        "engine": "kokoro", "voice": "bm_fable", "speed": 0.95,
+        "convert_ref": "tts_models/refs/einstein.wav",
+    },
     "shiva":    {"engine": "kokoro", "voice": "am_onyx", "speed": 0.80, "pitch": -1},
     "krishna":  {"engine": "kokoro", "voice": "am_michael", "speed": 1.0},
     "durga":    {"engine": "kokoro", "voice": "af_bella", "speed": 0.96, "pitch": -1},

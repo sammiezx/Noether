@@ -141,6 +141,13 @@ class TTS:
             "gain": cfg.get("gain", 1.0),
             "out": str(_NEURAL_WAV),
         }
+        ref = cfg.get("convert_ref")
+        if ref:
+            # Resolve relative to the repo so the helper (any cwd) finds it.
+            ref_path = Path(ref)
+            if not ref_path.is_absolute():
+                ref_path = _REPO / ref_path
+            req["convert_ref"] = str(ref_path)
         try:
             self._neural.stdin.write(json.dumps(req) + "\n")
             self._neural.stdin.flush()
