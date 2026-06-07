@@ -13,6 +13,7 @@ first use and kept warm so the model only loads once.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import subprocess
@@ -63,6 +64,23 @@ def neural_available() -> bool:
     return _VENV_TTS_PY.exists() and _KOKORO_MODEL.exists() and _KOKORO_VOICES.exists()
 
 
+# Live TTS instances, so a UI "shutdown" can tear down their child processes
+# (the neural helper holds torch + a ~1.5GB model — it must not be orphaned).
+_INSTANCES: list["TTS"] = []
+
+
+def shutdown_all() -> None:
+    """Kill every TTS instance's playback + neural helper. Safe to call twice."""
+    for t in list(_INSTANCES):
+        try:
+            t._hard_close()
+        except Exception:
+            pass
+
+
+atexit.register(shutdown_all)
+
+
 class TTS:
     def __init__(self, voice: str = "Zoe", rate: int = 185):
         self.voice = _pick_voice(voice)
@@ -71,6 +89,29 @@ class TTS:
         self._cfg = dict(DEFAULT_CFG)
         self._proc: subprocess.Popen | None = None       # current playback (say/afplay)
         self._neural: subprocess.Popen | None = None      # persistent Kokoro server
+        _INSTANCES.append(self)
+
+    def _hard_close(self) -> None:
+        """Kill current playback and the neural helper subprocess. For shutdown."""
+        if self._proc is not None and self._proc.poll() is None:
+            try:
+                self._proc.kill()
+            except Exception:
+                pass
+        if self._neural is not None and self._neural.poll() is None:
+            try:
+                self._neural.stdin.close()
+            except Exception:
+                pass
+            try:
+                self._neural.terminate()
+                self._neural.wait(timeout=1)
+            except Exception:
+                try:
+                    self._neural.kill()
+                except Exception:
+                    pass
+        self._neural = None
 
     # ---- configuration -----------------------------------------------------
 

@@ -405,6 +405,13 @@ function connect() {
     }
   };
   ws.onclose = () => {
+    if (terminated) {
+      // Intentional shutdown from the UI — the server is gone for good.
+      // Show a final closed state and stop trying to reconnect.
+      statusEl.textContent = "— CLOSED — you can close this tab —";
+      document.body.classList.add("closed");
+      return;
+    }
     setState("error");
     statusEl.textContent = "— DISCONNECTED — retrying —";
     setTimeout(connect, 1500);

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import signal
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -58,11 +57,20 @@ def create_app(bus: StateBus, controls: Controls) -> FastAPI:
                 elif command == "shutdown":
                     bus.publish({"type": "state", "value": "terminating"})
                     bus.publish({"type": "assistant", "text": "Powering down. Catch you later."})
-                    # Let the broadcast reach the UI, then send SIGINT to
-                    # trigger uvicorn's graceful shutdown.
+
+                    # Let the broadcast reach the UI, then tear everything down:
+                    # kill the neural-voice helper subprocess (torch + a ~1.5GB
+                    # model — must not be orphaned), then hard-exit the whole
+                    # process. os._exit is immediate and can't hang on the open
+                    # WebSocket the way a graceful SIGINT shutdown can.
                     async def _quit() -> None:
-                        await asyncio.sleep(0.3)
-                        os.kill(os.getpid(), signal.SIGINT)
+                        await asyncio.sleep(0.4)
+                        try:
+                            import tts
+                            tts.shutdown_all()
+                        except Exception:
+                            pass
+                        os._exit(0)
                     asyncio.create_task(_quit())
 
         send_task = asyncio.create_task(sender())
