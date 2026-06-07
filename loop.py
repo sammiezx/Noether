@@ -14,6 +14,7 @@ On first launch, the user is asked to enroll their voice.
 from __future__ import annotations
 
 import sys
+import threading
 import time
 import traceback
 
@@ -31,7 +32,7 @@ from controls import Controls
 from state_bus import StateBus
 from stt import STT
 from tools import init_tools
-from tts import TTS
+from tts import TTS, shutdown_all as shutdown_tts
 from voice_id import VoiceID
 
 SHUTDOWN_PHRASES = {
@@ -106,8 +107,21 @@ def _is_reset_voice(text: str) -> bool:
     return text.lower().strip(" .!?,") in RESET_VOICE_PHRASES
 
 
-def run_loop(bus: StateBus, controls: Controls) -> None:
-    """Initialize the pipeline and run the conversation loop forever."""
+def run_loop(
+    bus: StateBus, controls: Controls, stop_event: threading.Event | None = None
+) -> None:
+    """Initialize the pipeline and run the conversation loop until stopped.
+
+    `stop_event`, when set (by the agent manager / a UI "stop"), makes the loop
+    exit promptly, release the mic, and tear down the neural-voice helper —
+    leaving the web server running so the agent can be started again.
+    """
+    if stop_event is None:
+        stop_event = threading.Event()
+
+    def _cancelled() -> bool:
+        return controls.paused or stop_event.is_set()
+
     try:
         init_tools(bus)
         bus.publish({"type": "state", "value": "booting"})
@@ -161,7 +175,7 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                 noise_floor,
                 is_tts_active=tts.is_active,
                 on_frame=publish_amplitude,
-                should_cancel=lambda: controls.paused,
+                should_cancel=_cancelled,
                 # Less trigger-happy: a higher bar and a longer sustain so
                 # Emmy's own voice bleeding from the speakers doesn't read as
                 # the user interrupting. Real barge-in easily clears this.
@@ -201,7 +215,7 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                     silence_duration=2.0,
                     max_duration=20.0,
                     on_frame=publish_amplitude,
-                    should_cancel=lambda: controls.paused,
+                    should_cancel=_cancelled,
                 )
                 if audio is None or len(audio) < SAMPLE_RATE * 4:
                     speak_blocking(
@@ -222,10 +236,10 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
         # ------------------------------------------------------------------
         # Main conversation loop
         # ------------------------------------------------------------------
-        while True:
+        while not stop_event.is_set():
             if controls.paused:
                 bus.publish({"type": "state", "value": "paused"})
-                while controls.paused:
+                while controls.paused and not stop_event.is_set():
                     time.sleep(0.1)
                 continue
 
@@ -233,10 +247,13 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
             audio = record_until_silence(
                 noise_floor,
                 on_frame=publish_amplitude,
-                should_cancel=lambda: controls.paused,
+                should_cancel=_cancelled,
                 already_speaking=already_speaking,
             )
             already_speaking = False  # consumed
+
+            if stop_event.is_set():
+                break
 
             if audio is None or len(audio) < SAMPLE_RATE * 0.6:
                 continue
@@ -290,7 +307,7 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
                         silence_duration=2.0,
                         max_duration=20.0,
                         on_frame=publish_amplitude,
-                        should_cancel=lambda: controls.paused,
+                        should_cancel=_cancelled,
                     )
                     if re_audio is None or len(re_audio) < SAMPLE_RATE * 4:
                         speak_blocking("Not quite enough. Once more.")
@@ -345,5 +362,12 @@ def run_loop(bus: StateBus, controls: Controls) -> None:
         bus.publish({"type": "log", "text": f"FATAL: {exc}"})
         bus.publish({"type": "log", "text": traceback.format_exc()})
         bus.publish({"type": "state", "value": "error"})
-        time.sleep(5)
-        raise
+        time.sleep(2)
+    finally:
+        # Release the neural-voice helper (frees its model memory) and report
+        # that the agent is no longer running, so it can be started again.
+        try:
+            shutdown_tts()
+        except Exception:
+            pass
+        bus.publish({"type": "state", "value": "stopped"})

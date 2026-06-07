@@ -107,8 +107,22 @@ speaking voice/character).
 
 ## Setup
 
-Requires **macOS on Apple Silicon** (for `mlx-whisper` and the `say` voices) and
-**Python 3.11+**.
+Requires **macOS on Apple Silicon**, **Homebrew**, **Python 3.11+** (the app) and
+**Python 3.12** (the neural voices — `brew install python@3.12`).
+
+### One command
+
+```bash
+./start.sh
+```
+
+That's it. On first run `start.sh` creates both Python environments, installs deps,
+downloads the voice models (~1 GB), and builds the cloned-voice references — then every
+run after that skips straight to launching. It's idempotent, so re-running is safe. Edit
+`.env` to add your `ANTHROPIC_API_KEY` when it tells you to.
+
+<details>
+<summary>Or do it by hand</summary>
 
 ```bash
 # 1. Create a virtualenv and install deps
@@ -120,9 +134,13 @@ pip install -r requirements.txt
 cp .env.example .env
 # edit .env and set ANTHROPIC_API_KEY=sk-ant-...
 
-# 3. Run
+# 3. (optional) neural character voices
+./setup_neural_tts.sh
+
+# 4. Run
 python main.py
 ```
+</details>
 
 First boot downloads the Whisper model (~800 MB) and prompts you to enroll your voice
 (talk for ~10 seconds). The browser UI opens automatically at
