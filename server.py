@@ -24,6 +24,15 @@ STATIC_DIR = BASE_DIR / "static"
 def create_app(bus: StateBus, controls: Controls) -> FastAPI:
     app = FastAPI()
 
+    @app.middleware("http")
+    async def _no_cache(request, call_next):
+        # The UI assets evolve constantly during development; tell the browser
+        # never to cache them so edits show up on a normal reload (no more
+        # stale app.js).
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.on_event("startup")
     async def _bind_loop() -> None:
         bus.bind_loop(asyncio.get_running_loop())
