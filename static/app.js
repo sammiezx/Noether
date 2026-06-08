@@ -40,6 +40,20 @@ let currentState = "starting";
 let amplitude = 0;
 let smoothedAmplitude = 0;
 let isPaused = false;
+
+// --- Persona "living portraits": a photo whose jaw drops with the voice ---
+// `mouth` = fraction of image height where the jaw seam sits; `drop` = max jaw
+// travel as a fraction of face height at full amplitude.
+const faceCfgs = {
+  einstein: { src: "/faces/einstein.jpg", mouth: 0.62, drop: 0.07 },
+};
+const faceImgs = {};
+for (const k in faceCfgs) {
+  const im = new Image();
+  im.src = faceCfgs[k].src;
+  faceImgs[k] = im;
+}
+let activeFaceKey = null;
 let t0 = performance.now();
 let ws = null;
 
@@ -131,6 +145,30 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
+function drawFace(t, w, h) {
+  const cfg = faceCfgs[activeFaceKey];
+  const img = faceImgs[activeFaceKey];
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const scale = Math.min(w / iw, h / ih) * 0.95;
+  const dw = iw * scale, dh = ih * scale;
+  // gentle idle head sway so he looks alive even when silent
+  const sway = Math.sin(t * 1.2) * 2 + Math.sin(t * 0.5) * 1.5;
+  const dx = (w - dw) / 2;
+  const dy = (h - dh) / 2 + sway;
+  const seam = dy + dh * cfg.mouth;               // jaw line in canvas coords
+  const drop = Math.min(1, smoothedAmplitude) * dh * cfg.drop;
+  const srcSeam = ih * cfg.mouth;
+
+  ctx.clearRect(0, 0, w, h);
+  // dark mouth interior, revealed as the jaw drops
+  ctx.fillStyle = "#160b06";
+  ctx.fillRect(dx, seam, dw, Math.max(0, drop));
+  // upper face — fixed
+  ctx.drawImage(img, 0, 0, iw, srcSeam, dx, dy, dw, dh * cfg.mouth);
+  // lower face / jaw — shifted down with the voice
+  ctx.drawImage(img, 0, srcSeam, iw, ih - srcSeam, dx, seam + drop, dw, dh * (1 - cfg.mouth));
+}
+
 function draw(now) {
   const t = (now - t0) / 1000;
   const w = orb.clientWidth;
@@ -144,6 +182,14 @@ function draw(now) {
   smoothedAmplitude += (amplitude - smoothedAmplitude) * 0.2;
   // Decay amplitude when no fresh frame comes in.
   amplitude *= 0.92;
+
+  // Living-portrait personas (e.g. Einstein) replace the orb with the face.
+  const fimg = activeFaceKey ? faceImgs[activeFaceKey] : null;
+  if (fimg && fimg.complete && fimg.naturalWidth) {
+    drawFace(t, w, h);
+    requestAnimationFrame(draw);
+    return;
+  }
 
   ctx.clearRect(0, 0, w, h);
 
@@ -401,6 +447,7 @@ function connect() {
         break;
       case "persona":
         setPersona(msg.key, msg.label);
+        activeFaceKey = faceCfgs[msg.key] ? msg.key : null;
         break;
     }
   };
