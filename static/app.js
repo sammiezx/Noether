@@ -45,7 +45,10 @@ let isPaused = false;
 // `mouth` = fraction of image height where the jaw seam sits; `drop` = max jaw
 // travel as a fraction of face height at full amplitude.
 const faceCfgs = {
-  einstein: { src: "/faces/einstein.jpg", mouth: 0.62, drop: 0.07 },
+  // mouth = jaw-seam height (just under the mustache); drop = max jaw travel
+  // as a fraction of face height (kept small so it reads as talking, not
+  // a face splitting in half).
+  einstein: { src: "/faces/einstein.jpg", mouth: 0.66, drop: 0.022 },
 };
 const faceImgs = {};
 for (const k in faceCfgs) {
@@ -152,21 +155,30 @@ function drawFace(t, w, h) {
   const scale = Math.min(w / iw, h / ih) * 0.95;
   const dw = iw * scale, dh = ih * scale;
   // gentle idle head sway so he looks alive even when silent
-  const sway = Math.sin(t * 1.2) * 2 + Math.sin(t * 0.5) * 1.5;
+  const sway = Math.sin(t * 1.1) * 1.4 + Math.sin(t * 0.6) * 0.9;
   const dx = (w - dw) / 2;
   const dy = (h - dh) / 2 + sway;
   const seam = dy + dh * cfg.mouth;               // jaw line in canvas coords
-  const drop = Math.min(1, smoothedAmplitude) * dh * cfg.drop;
   const srcSeam = ih * cfg.mouth;
+  const amp = Math.max(0, Math.min(1, smoothedAmplitude));
+  const drop = Math.pow(amp, 0.7) * dh * cfg.drop; // eased jaw travel
 
   ctx.clearRect(0, 0, w, h);
-  // dark mouth interior, revealed as the jaw drops
-  ctx.fillStyle = "#160b06";
-  ctx.fillRect(dx, seam, dw, Math.max(0, drop));
-  // upper face — fixed
+  // upper face (down to the mouth line) — fixed
   ctx.drawImage(img, 0, 0, iw, srcSeam, dx, dy, dw, dh * cfg.mouth);
-  // lower face / jaw — shifted down with the voice
+  // lower face / jaw — slid down a little with the voice
   ctx.drawImage(img, 0, srcSeam, iw, ih - srcSeam, dx, seam + drop, dw, dh * (1 - cfg.mouth));
+  // soft, centered mouth opening in the gap between the two halves
+  if (drop > 0.6) {
+    const mw = dw * 0.32, mx = dx + (dw - mw) / 2;
+    const g = ctx.createLinearGradient(0, seam, 0, seam + drop);
+    g.addColorStop(0, "rgba(8,4,3,0.96)");
+    g.addColorStop(1, "rgba(45,18,14,0.55)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.roundRect(mx, seam, mw, drop, Math.min(mw / 2, drop));
+    ctx.fill();
+  }
 }
 
 function draw(now) {
