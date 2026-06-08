@@ -45,6 +45,17 @@ def create_app(bus: StateBus, controls: Controls) -> FastAPI:
         # Push the current paused state so the UI button starts in sync.
         await websocket.send_json({"type": "paused", "value": controls.paused})
 
+        # Push the current persona so a freshly-loaded page shows the right
+        # brand + face immediately (the live "persona" event only fires on a
+        # switch, which a new page would otherwise miss).
+        try:
+            import persona
+            await websocket.send_json(
+                {"type": "persona", "key": persona.current(), "label": persona.label()}
+            )
+        except Exception:
+            pass
+
         async def sender() -> None:
             while True:
                 event = await queue.get()
