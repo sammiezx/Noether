@@ -1,11 +1,13 @@
 """Noether — entry point. Boots:
   1. The Emmy pipeline (audio → STT → Claude → TTS) in a worker thread.
   2. A FastAPI server with a WebSocket the browser UI subscribes to.
-  3. The default browser, pointed at the UI.
+  3. The UI in Safari (override with NOETHER_BROWSER=safari|default|none).
 """
 
 from __future__ import annotations
 
+import os
+import subprocess
 import threading
 import time
 import webbrowser
@@ -23,6 +25,10 @@ from state_bus import StateBus
 HOST = "127.0.0.1"
 PORT = 8765
 
+# Which browser to open the UI in: "safari" (default), "default" (system
+# default), or "none" (don't auto-open — e.g. you use the VS Code Simple Browser).
+BROWSER = os.environ.get("NOETHER_BROWSER", "safari").lower()
+
 
 def main() -> None:
     bus = StateBus()
@@ -34,7 +40,16 @@ def main() -> None:
 
     def open_browser() -> None:
         time.sleep(0.8)
-        webbrowser.open(f"http://{HOST}:{PORT}/")
+        url = f"http://{HOST}:{PORT}/"
+        if BROWSER == "none":
+            return
+        if BROWSER == "safari":
+            try:
+                subprocess.run(["open", "-a", "Safari", url], check=True)
+                return
+            except Exception:
+                pass  # fall back to the system default
+        webbrowser.open(url)
 
     threading.Thread(target=open_browser, daemon=True).start()
 
