@@ -13,6 +13,7 @@ On first launch, the user is asked to enroll their voice.
 
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import time
@@ -230,6 +231,19 @@ def run_loop(
                     speak_blocking("Hmm, that didn't take. Let's try once more.")
 
         speak_blocking("Emmy online. Standing by.")
+
+        # Optionally boot straight into a character (handy for testing). The
+        # plain greeting above stays on Emmy's fast voice; we switch after it,
+        # so the UI shows the persona's face/brand and the first reply is in
+        # character. Set NOETHER_PERSONA=emmy to start as Emmy.
+        startup = os.environ.get("NOETHER_PERSONA", "einstein").strip().lower()
+        if startup != persona.DEFAULT and persona.is_valid(startup):
+            persona.set_current(startup)
+            bus.publish({
+                "type": "persona",
+                "key": startup,
+                "label": persona.label(startup),
+            })
 
         already_speaking = False
 
