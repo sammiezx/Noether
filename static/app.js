@@ -45,10 +45,10 @@ let isPaused = false;
 // `mouth` = fraction of image height where the jaw seam sits; `drop` = max jaw
 // travel as a fraction of face height at full amplitude.
 const faceCfgs = {
-  // mouth = jaw-seam height (just under the mustache); drop = max jaw travel
-  // as a fraction of face height (kept small so it reads as talking, not
-  // a face splitting in half).
-  einstein: { src: "/faces/einstein.jpg", mouth: 0.66, drop: 0.022 },
+  // mouth = jaw-seam (under the mustache); jaw = bottom of the moving jaw
+  // (below this — collar/shoulders — stays put); drop = max jaw travel as a
+  // fraction of face height.
+  einstein: { src: "/faces/einstein.jpg", mouth: 0.66, jaw: 0.80, drop: 0.03 },
 };
 const faceImgs = {};
 for (const k in faceCfgs) {
@@ -158,27 +158,35 @@ function drawFace(t, w, h) {
   const sway = Math.sin(t * 1.1) * 1.4 + Math.sin(t * 0.6) * 0.9;
   const dx = (w - dw) / 2;
   const dy = (h - dh) / 2 + sway;
-  const seam = dy + dh * cfg.mouth;               // jaw line in canvas coords
-  const srcSeam = ih * cfg.mouth;
+  const jawCfg = cfg.jaw || 0.82;
+  const lip = dy + dh * cfg.mouth;          // mouth seam (canvas coords)
+  const jawBot = dy + dh * jawCfg;          // bottom of the moving jaw
+  const srcLip = ih * cfg.mouth;
+  const srcJaw = ih * jawCfg;
   const amp = Math.max(0, Math.min(1, smoothedAmplitude));
   const drop = Math.pow(amp, 0.7) * dh * cfg.drop; // eased jaw travel
 
   ctx.clearRect(0, 0, w, h);
-  // upper face (down to the mouth line) — fixed
-  ctx.drawImage(img, 0, 0, iw, srcSeam, dx, dy, dw, dh * cfg.mouth);
-  // lower face / jaw — slid down a little with the voice
-  ctx.drawImage(img, 0, srcSeam, iw, ih - srcSeam, dx, seam + drop, dw, dh * (1 - cfg.mouth));
-  // soft, centered mouth opening in the gap between the two halves
+  // collar / shoulders — fixed (drawn first so the dropping jaw overlaps it)
+  ctx.drawImage(img, 0, srcJaw, iw, ih - srcJaw, dx, jawBot, dw, dh * (1 - jawCfg));
+  // upper face down to the mouth — fixed
+  ctx.drawImage(img, 0, 0, iw, srcLip, dx, dy, dw, dh * cfg.mouth);
+  // soft, centered mouth interior revealed as the jaw drops
   if (drop > 0.6) {
-    const mw = dw * 0.32, mx = dx + (dw - mw) / 2;
-    const g = ctx.createLinearGradient(0, seam, 0, seam + drop);
-    g.addColorStop(0, "rgba(8,4,3,0.96)");
-    g.addColorStop(1, "rgba(45,18,14,0.55)");
+    const mw = dw * 0.30, mx = dx + (dw - mw) / 2;
+    const g = ctx.createLinearGradient(0, lip, 0, lip + drop);
+    g.addColorStop(0, "rgba(8,4,3,0.95)");
+    g.addColorStop(1, "rgba(50,20,16,0.5)");
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.roundRect(mx, seam, mw, drop, Math.min(mw / 2, drop));
+    ctx.roundRect(mx, lip, mw, drop, Math.min(mw / 2, drop));
     ctx.fill();
   }
+  // jaw (mouth → chin) only — slides down with the voice; collar stays put
+  ctx.drawImage(
+    img, 0, srcLip, iw, srcJaw - srcLip,
+    dx, lip + drop, dw, dh * (jawCfg - cfg.mouth),
+  );
 }
 
 function draw(now) {
