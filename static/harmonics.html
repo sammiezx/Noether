@@ -146,12 +146,15 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(3.2, 2.2, 3.2);
+camera.position.set(4.6, 3.2, 4.6);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 1.1;
+controls.minDistance = 3;
+controls.maxDistance = 18;
+controls.target.set(0, 0, 0);
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(4, 6, 5); scene.add(key);
@@ -201,8 +204,8 @@ function buildMesh() {
       const norm = v / maxAbs;                  // in [-1, 1]
 
       let R;
-      if (mode === "lobes") R = 0.18 + 2.0 * Math.abs(norm); // radius = |Y|
-      else R = 1.7;                              // unit sphere (heatmap)
+      if (mode === "lobes") R = 0.12 + 1.55 * Math.abs(norm); // radius = |Y|
+      else R = 1.5;                              // unit sphere (heatmap)
 
       positions[idx * 3] = dx * R;
       positions[idx * 3 + 1] = dy * R;
