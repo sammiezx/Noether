@@ -13,7 +13,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font-family: -apple-system, system-ui, "Segoe UI", sans-serif; overflow: hidden; }
-  #c { position: fixed; inset: 0; display: block; }
+  #c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   .grid-bg { position: fixed; inset: 0; pointer-events: none;
     background-image: linear-gradient(rgba(56,225,255,0.05) 1px, transparent 1px),
       linear-gradient(90deg, rgba(56,225,255,0.05) 1px, transparent 1px);
@@ -306,7 +306,7 @@ tWire.addEventListener("click", () => {
 // ---------------------------------------------------------------------------
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h, false);
+  renderer.setSize(w, h);   // updateStyle=true: canvas display size == viewport
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 window.addEventListener("resize", resize);
