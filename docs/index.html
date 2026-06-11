@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spherical Harmonics</title>
+<style>
+  :root {
+    --bg: #05070d; --panel: rgba(10,16,28,0.78); --border: #1d2b44;
+    --accent: #38e1ff; --text: #cbd5e1; --muted: #6b7d99;
+    --pos: #ff6b5e; --neg: #4aa3ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, system-ui, "Segoe UI", sans-serif; overflow: hidden; }
+  #c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  .grid-bg { position: fixed; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(56,225,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,225,255,0.05) 1px, transparent 1px);
+    background-size: 44px 44px; mask-image: radial-gradient(circle at 50% 50%, #000 30%, transparent 80%); }
+
+  header { position: fixed; top: 22px; left: 28px; z-index: 5; }
+  h1 { margin: 0; font-size: 15px; letter-spacing: 8px; font-weight: 600;
+    color: var(--accent); text-shadow: 0 0 18px rgba(56,225,255,0.5); }
+  .sub { margin-top: 4px; font-size: 11px; letter-spacing: 3px; color: var(--muted); }
+
+  .panel { position: fixed; top: 22px; right: 24px; z-index: 5; width: 290px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 18px 20px; backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .ymath { text-align: center; font-size: 30px; margin: 2px 0 4px;
+    font-family: "Times New Roman", Georgia, serif; color: #fff; }
+  .ymath sub, .ymath sup { font-size: 16px; }
+  .desc { text-align: center; font-size: 11.5px; color: var(--muted); min-height: 28px;
+    line-height: 1.45; margin-bottom: 14px; }
+  .row { margin: 14px 0; }
+  .row label { display: flex; justify-content: space-between; font-size: 11px;
+    letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 7px; }
+  .row label b { color: var(--accent); font-size: 13px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .modes { display: flex; gap: 6px; margin-top: 6px; }
+  .modes button, .toggle { flex: 1; padding: 8px 6px; font-size: 11px; cursor: pointer;
+    background: rgba(56,225,255,0.06); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; letter-spacing: 1px; }
+  .modes button.on, .toggle.on { background: rgba(56,225,255,0.18);
+    border-color: var(--accent); color: #fff; }
+  .toggles { display: flex; gap: 6px; margin-top: 10px; }
+  .legend { display: flex; justify-content: center; gap: 18px; margin-top: 16px;
+    font-size: 11px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 11px; height: 11px; border-radius: 3px; }
+  .hint { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 2px; color: var(--muted); z-index: 5; }
+</style>
+<script type="importmap">
+  { "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <canvas id="c"></canvas>
+
+  <header>
+    <h1>SPHERICAL&nbsp;HARMONICS</h1>
+    <div class="sub">Y&#8343;&#7504;(θ, φ) &nbsp;·&nbsp; THE SHAPE OF ANGULAR MOMENTUM</div>
+  </header>
+
+  <div class="panel">
+    <div class="ymath" id="ymath">Y<sub>3</sub><sup>2</sup></div>
+    <div class="desc" id="desc"></div>
+
+    <div class="row">
+      <label>Degree &nbsp;ℓ <b id="lval">3</b></label>
+      <input type="range" id="l" min="0" max="10" step="1" value="3" />
+    </div>
+    <div class="row">
+      <label>Order &nbsp;m <b id="mval">2</b></label>
+      <input type="range" id="m" min="-3" max="3" step="1" value="2" />
+    </div>
+
+    <div class="modes">
+      <button id="mode-lobes" class="on">|Y| LOBES</button>
+      <button id="mode-sphere">SPHERE MAP</button>
+    </div>
+    <div class="toggles">
+      <button class="toggle on" id="t-rotate">AUTO-ROTATE</button>
+      <button class="toggle" id="t-wire">WIREFRAME</button>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--pos)"></i> Y &gt; 0</span>
+      <span><i class="dot" style="background:var(--neg)"></i> Y &lt; 0</span>
+    </div>
+  </div>
+
+  <div class="hint">drag to orbit · scroll to zoom</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// ---------------------------------------------------------------------------
+// Real spherical harmonics math
+// ---------------------------------------------------------------------------
+function factorial(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+
+// Associated Legendre P_l^m(x), m >= 0 (Numerical Recipes recurrence,
+// includes the Condon–Shortley (-1)^m phase — irrelevant to the shape).
+function plgndr(l, m, x) {
+  let pmm = 1;
+  if (m > 0) {
+    const somx2 = Math.sqrt((1 - x) * (1 + x));
+    let fact = 1;
+    for (let i = 1; i <= m; i++) { pmm *= -fact * somx2; fact += 2; }
+  }
+  if (l === m) return pmm;
+  let pmmp1 = x * (2 * m + 1) * pmm;
+  if (l === m + 1) return pmmp1;
+  let pll = 0;
+  for (let ll = m + 2; ll <= l; ll++) {
+    pll = (x * (2 * ll - 1) * pmmp1 - (ll + m - 1) * pmm) / (ll - m);
+    pmm = pmmp1; pmmp1 = pll;
+  }
+  return pll;
+}
+
+// Real spherical harmonic Y_l^m(theta, phi).
+function realSH(l, m, theta, phi) {
+  const am = Math.abs(m);
+  const x = Math.cos(theta);
+  const norm = Math.sqrt((2 * l + 1) / (4 * Math.PI) * factorial(l - am) / factorial(l + am));
+  const P = plgndr(l, am, x);
+  if (m > 0) return Math.SQRT2 * norm * P * Math.cos(am * phi);
+  if (m < 0) return Math.SQRT2 * norm * P * Math.sin(am * phi);
+  return norm * P;
+}
+
+// ---------------------------------------------------------------------------
+// Three.js scene
+// ---------------------------------------------------------------------------
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(4.6, 3.2, 4.6);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 1.1;
+controls.minDistance = 3;
+controls.maxDistance = 18;
+controls.target.set(0, 0, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(4, 6, 5); scene.add(key);
+const rim = new THREE.DirectionalLight(0x66ccff, 0.6); rim.position.set(-5, -2, -4); scene.add(rim);
+
+const POS = new THREE.Color("#ff6b5e");
+const NEG = new THREE.Color("#4aa3ff");
+
+const material = new THREE.MeshPhongMaterial({
+  vertexColors: true, shininess: 28, specular: 0x223344, side: THREE.DoubleSide,
+});
+let mesh = null;
+
+const TH = 128, PH = 256;           // angular resolution
+let state = { l: 3, m: 2, mode: "lobes" };
+
+function buildMesh() {
+  const { l, m, mode } = state;
+  const verts = (TH + 1) * (PH + 1);
+  const positions = new Float32Array(verts * 3);
+  const colors = new Float32Array(verts * 3);
+
+  // First pass: sample Y, track max |Y| for scaling.
+  const Y = new Float32Array(verts);
+  let maxAbs = 1e-9;
+  let idx = 0;
+  for (let i = 0; i <= TH; i++) {
+    const theta = (i / TH) * Math.PI;
+    for (let j = 0; j <= PH; j++) {
+      const phi = (j / PH) * 2 * Math.PI;
+      const v = realSH(l, m, theta, phi);
+      Y[idx++] = v;
+      const a = Math.abs(v);
+      if (a > maxAbs) maxAbs = a;
+    }
+  }
+
+  idx = 0;
+  const c = new THREE.Color();
+  for (let i = 0; i <= TH; i++) {
+    const theta = (i / TH) * Math.PI;
+    const st = Math.sin(theta), ct = Math.cos(theta);
+    for (let j = 0; j <= PH; j++) {
+      const phi = (j / PH) * 2 * Math.PI;
+      const dx = st * Math.cos(phi), dy = ct, dz = st * Math.sin(phi); // y-up
+      const v = Y[idx];
+      const norm = v / maxAbs;                  // in [-1, 1]
+
+      let R;
+      if (mode === "lobes") R = 0.12 + 1.55 * Math.abs(norm); // radius = |Y|
+      else R = 1.5;                              // unit sphere (heatmap)
+
+      positions[idx * 3] = dx * R;
+      positions[idx * 3 + 1] = dy * R;
+      positions[idx * 3 + 2] = dz * R;
+
+      // colour: sign-based, brightening with magnitude
+      const t = Math.min(1, Math.abs(norm));
+      c.copy(v >= 0 ? POS : NEG);
+      c.lerp(new THREE.Color(0x0a0f1a), 1 - (0.35 + 0.65 * t)); // darker near nodes
+      colors[idx * 3] = c.r; colors[idx * 3 + 1] = c.g; colors[idx * 3 + 2] = c.b;
+      idx++;
+    }
+  }
+
+  // Indices (two triangles per grid quad).
+  const indices = [];
+  const row = PH + 1;
+  for (let i = 0; i < TH; i++) {
+    for (let j = 0; j < PH; j++) {
+      const a = i * row + j, b = a + 1, d = a + row, e = d + 1;
+      indices.push(a, d, b, b, d, e);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
+  if (mesh) { mesh.geometry.dispose(); mesh.geometry = geo; }
+  else { mesh = new THREE.Mesh(geo, material); scene.add(mesh); }
+}
+
+// ---------------------------------------------------------------------------
+// Descriptions of the named cases people actually recognise
+// ---------------------------------------------------------------------------
+function describe(l, m) {
+  const names = {
+    "0,0": "The monopole — perfectly uniform. (An s orbital.)",
+    "1,0": "A dumbbell along z — the p₂ orbital.",
+    "1,1": "p orbital in the xy-plane.",
+    "2,0": "The d₂² orbital — lobes plus a ring.",
+    "2,2": "Cloverleaf in the xy-plane — a d orbital.",
+    "3,0": "An f-type harmonic stacked along z.",
+  };
+  const k = `${l},${Math.abs(m)}`;
+  if (names[k]) return names[k];
+  if (m === 0) return `Axially symmetric about z, with ${l} latitude bands.`;
+  return `${l - Math.abs(m)} latitude bands × ${Math.abs(m)} longitude waves.`;
+}
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+const lSlider = document.getElementById("l");
+const mSlider = document.getElementById("m");
+const lval = document.getElementById("lval");
+const mval = document.getElementById("mval");
+const ymath = document.getElementById("ymath");
+const desc = document.getElementById("desc");
+
+function refresh() {
+  const l = +lSlider.value;
+  // clamp m to [-l, l] and update its slider range
+  mSlider.min = -l; mSlider.max = l;
+  let m = Math.max(-l, Math.min(l, +mSlider.value));
+  mSlider.value = m;
+  state.l = l; state.m = m;
+  lval.textContent = l;
+  mval.textContent = m;
+  ymath.innerHTML = `Y<sub>${l}</sub><sup>${m}</sup>`;
+  desc.textContent = describe(l, m);
+  buildMesh();
+}
+
+lSlider.addEventListener("input", refresh);
+mSlider.addEventListener("input", refresh);
+
+const bLobes = document.getElementById("mode-lobes");
+const bSphere = document.getElementById("mode-sphere");
+bLobes.addEventListener("click", () => {
+  state.mode = "lobes"; bLobes.classList.add("on"); bSphere.classList.remove("on"); buildMesh();
+});
+bSphere.addEventListener("click", () => {
+  state.mode = "sphere"; bSphere.classList.add("on"); bLobes.classList.remove("on"); buildMesh();
+});
+
+const tRotate = document.getElementById("t-rotate");
+tRotate.addEventListener("click", () => {
+  controls.autoRotate = !controls.autoRotate; tRotate.classList.toggle("on", controls.autoRotate);
+});
+const tWire = document.getElementById("t-wire");
+tWire.addEventListener("click", () => {
+  material.wireframe = !material.wireframe; tWire.classList.toggle("on", material.wireframe);
+});
+
+// ---------------------------------------------------------------------------
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);   // updateStyle=true: canvas display size == viewport
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize);
+resize();
+refresh();
+
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
