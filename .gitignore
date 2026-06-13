@@ -10,3 +10,7 @@ __pycache__/
 *.db
 *.sqlite
 .DS_Store
+
+# voice biometric — never commit
+.voice_print.npy
+*.npy
