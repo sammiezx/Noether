@@ -23,6 +23,7 @@ import numpy as np
 
 from audio import (
     SAMPLE_RATE,
+    MicStream,
     calibrate_noise_floor,
     listen_during_tts,
     record_until_silence,
@@ -123,6 +124,7 @@ def run_loop(
     def _cancelled() -> bool:
         return controls.paused or stop_event.is_set()
 
+    mic: MicStream | None = None
     try:
         init_tools(bus)
         bus.publish({"type": "state", "value": "booting"})
@@ -140,7 +142,8 @@ def run_loop(
         brain = Brain()
 
         bus.publish({"type": "log", "text": "Calibrating microphone..."})
-        noise_floor = calibrate_noise_floor(1.0)
+        mic = MicStream()
+        noise_floor = calibrate_noise_floor(mic, 1.0)
         bus.publish({"type": "log", "text": f"Noise floor: {noise_floor:.5f}"})
 
         def publish_amplitude(energy: float, _recording: bool) -> None:
@@ -174,6 +177,7 @@ def run_loop(
             time.sleep(0.15)
             interrupted = listen_during_tts(
                 noise_floor,
+                mic,
                 is_tts_active=tts.is_active,
                 on_frame=publish_amplitude,
                 should_cancel=_cancelled,
@@ -213,6 +217,7 @@ def run_loop(
                 bus.publish({"type": "state", "value": "listening"})
                 audio = record_until_silence(
                     noise_floor,
+                    mic,
                     silence_duration=2.0,
                     max_duration=20.0,
                     on_frame=publish_amplitude,
@@ -260,6 +265,7 @@ def run_loop(
             bus.publish({"type": "state", "value": "listening"})
             audio = record_until_silence(
                 noise_floor,
+                mic,
                 on_frame=publish_amplitude,
                 should_cancel=_cancelled,
                 already_speaking=already_speaking,
@@ -318,6 +324,7 @@ def run_loop(
                     bus.publish({"type": "state", "value": "listening"})
                     re_audio = record_until_silence(
                         noise_floor,
+                        mic,
                         silence_duration=2.0,
                         max_duration=20.0,
                         on_frame=publish_amplitude,
@@ -378,8 +385,10 @@ def run_loop(
         bus.publish({"type": "state", "value": "error"})
         time.sleep(2)
     finally:
-        # Release the neural-voice helper (frees its model memory) and report
-        # that the agent is no longer running, so it can be started again.
+        # Release the mic stream and the neural-voice helper (frees its model
+        # memory), and report that the agent is no longer running.
+        if mic is not None:
+            mic.close()
         try:
             shutdown_tts()
         except Exception:

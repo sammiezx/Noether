@@ -50,7 +50,30 @@ def _expand(path: str) -> str:
 # 1. run_shell
 # ---------------------------------------------------------------------------
 
+# A small safety net: the agent runs shell commands autonomously, so refuse the
+# handful of patterns that are catastrophic and almost never intended by voice.
+# This is a guardrail, not a sandbox — only run Emmy on a machine you trust.
+import re as _re
+
+_DANGEROUS_SHELL = [
+    r"\brm\s+-[a-z]*r[a-z]*f\b.*\s(/|~|\$HOME|\.)\s*$",  # rm -rf / ~ . etc.
+    r"\brm\s+-[a-z]*r[a-z]*f\s+/(\s|$)",                  # rm -rf /
+    r"\bmkfs\b", r"\bdd\b.*\bof=/dev/", r">\s*/dev/sd",   # disk wipes
+    r":\(\)\s*\{.*\}\s*;:",                                # fork bomb
+    r"\b(shutdown|reboot|halt)\b", r"\bdiskutil\s+erase",
+    r"\bsudo\b.*\brm\b",
+]
+
+
 def run_shell(command: str, timeout: int = 30) -> str:
+    low = command.strip().lower()
+    for pat in _DANGEROUS_SHELL:
+        if _re.search(pat, low):
+            return (
+                "Refused: that command matches a destructive pattern "
+                "(disk wipe / mass delete / power-off) and is blocked for safety. "
+                "Run it manually if you really mean it."
+            )
     try:
         proc = subprocess.run(
             command,
