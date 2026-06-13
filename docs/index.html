@@ -192,15 +192,15 @@
         </div>
       </a>
 
-      <div class="exhibit soon">
-        <span class="badge soon">COMING SOON</span>
-        <div class="thumb"><div class="emoji">🧬</div></div>
+      <a class="exhibit" href="superposition.html">
+        <span class="badge live">LIVE</span>
+        <div class="thumb"><canvas id="thumb-sup"></canvas></div>
         <div class="body">
           <h3>Superposition</h3>
-          <p>How real orbitals and wavefunctions are built by combining harmonics — blend states and watch new shapes emerge from interference.</p>
-          <span class="open" style="color:var(--muted)">In the works</span>
+          <p>How real orbitals and hybrids are built by combining harmonics — set amplitudes and phases, watch shapes emerge from interference, and let time evolution morph them. s+p hybrids, pₓ/p_y, sp³, and more.</p>
+          <span class="open">Launch visualization →</span>
         </div>
-      </div>
+      </a>
 
       <div class="exhibit soon">
         <span class="badge soon">COMING SOON</span>
@@ -315,13 +315,42 @@ function makeScene(canvas, l, m, dist) {
   return { renderer, scene, cam, mesh, phis, m, resize };
 }
 
+// complex harmonic + superposition (for the superposition thumbnail)
+function cY(l,m,theta,phi){const am=Math.abs(m);const N=Math.sqrt((2*l+1)/(4*Math.PI)*fact(l-am)/fact(l+am));let b=N*plgndr(l,am,Math.cos(theta));if(m<0&&am%2===1)b=-b;return [b*Math.cos(m*phi),b*Math.sin(m*phi)];}
+function supMesh(terms, TH=80, PH=160){
+  const verts=(TH+1)*(PH+1);const pos=new Float32Array(verts*3),col=new Float32Array(verts*3);
+  const mags=new Float32Array(verts),phs=new Float32Array(verts);let maxM=1e-9,idx=0;
+  for(let i=0;i<=TH;i++){const th=i/TH*Math.PI;for(let j=0;j<=PH;j++){const ph=j/PH*2*Math.PI;let re=0,im=0;
+    for(const t of terms){const y=cY(t[0],t[1],th,ph);re+=t[2]*y[0];im+=t[2]*y[1];}
+    const mg=Math.hypot(re,im);mags[idx]=mg;phs[idx]=Math.atan2(im,re);if(mg>maxM)maxM=mg;idx++;}}
+  idx=0;const c=new THREE.Color();
+  for(let i=0;i<=TH;i++){const th=i/TH*Math.PI,st=Math.sin(th),ct=Math.cos(th);
+    for(let j=0;j<=PH;j++){const ph=j/PH*2*Math.PI;const r=0.18+1.7*(mags[idx]/maxM);
+      pos[idx*3]=st*Math.cos(ph)*r;pos[idx*3+1]=ct*r;pos[idx*3+2]=st*Math.sin(ph)*r;
+      c.setHSL(((phs[idx]/(2*Math.PI))%1+1)%1,0.8,0.4+0.3*(mags[idx]/maxM));
+      col[idx*3]=c.r;col[idx*3+1]=c.g;col[idx*3+2]=c.b;idx++;}}
+  const ind=[];const row=PH+1;for(let i=0;i<TH;i++)for(let j=0;j<PH;j++){const a=i*row+j;ind.push(a,a+row,a+1,a+1,a+row,a+row+1);}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("color",new THREE.BufferAttribute(col,3));g.setIndex(ind);g.computeVertexNormals();return g;
+}
+function makeGeoScene(canvas,geo,dist){
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  const scene=new THREE.Scene();const cam=new THREE.PerspectiveCamera(45,1,0.1,100);cam.position.set(dist,dist*0.65,dist);cam.lookAt(0,0,0);
+  scene.add(new THREE.AmbientLight(0xffffff,0.6));const k=new THREE.DirectionalLight(0xffffff,1);k.position.set(4,6,5);scene.add(k);
+  const r=new THREE.DirectionalLight(0x66ccff,0.6);r.position.set(-5,-2,-4);scene.add(r);
+  const mesh=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({vertexColors:true,shininess:30,specular:0x223344,side:THREE.DoubleSide}));scene.add(mesh);
+  function resize(){const rc=canvas.getBoundingClientRect();renderer.setSize(rc.width,rc.height,false);cam.aspect=rc.width/rc.height;cam.updateProjectionMatrix();}
+  return {renderer,scene,cam,mesh,resize};
+}
+
 // hero — large rotating, phase-animated harmonic
 const hero = makeScene(document.getElementById("hero-canvas"), 6, 4, 5.2);
 hero.cam.position.set(6.2, 3.0, 6.2);
 // thumbnail in the gallery card
 const thumb = makeScene(document.getElementById("thumb-sh"), 5, 3, 4.4);
+// superposition thumbnail (sp³ hybrid: s + p_x + p_y + p_z)
+const sup = makeGeoScene(document.getElementById("thumb-sup"), supMesh([[0,0,1],[1,0,1],[1,1,1],[1,-1,1]]), 4.0);
 
-function fit(){ hero.resize(); thumb.resize(); }
+function fit(){ hero.resize(); thumb.resize(); sup.resize(); }
 addEventListener("resize", fit); fit();
 
 let t = 0;
@@ -337,10 +366,11 @@ function animatePhase(s) {
 }
 function loop() {
   t += 0.02;
-  hero.mesh.rotation.y += 0.0016; thumb.mesh.rotation.y += 0.004;
+  hero.mesh.rotation.y += 0.0016; thumb.mesh.rotation.y += 0.004; sup.mesh.rotation.y += 0.005;
   animatePhase(hero); animatePhase(thumb);
   hero.renderer.render(hero.scene, hero.cam);
   thumb.renderer.render(thumb.scene, thumb.cam);
+  sup.renderer.render(sup.scene, sup.cam);
   requestAnimationFrame(loop);
 }
 loop();

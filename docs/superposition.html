@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Superposition — Physik</title>
+<style>
+  :root { --bg:#05070d; --panel:rgba(10,16,28,0.82); --border:#1d2b44; --accent:#38e1ff; --text:#cbd5e1; --muted:#6b7d99; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,system-ui,"Segoe UI",sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
+  .grid-bg { position:fixed; inset:0; pointer-events:none;
+    background-image:linear-gradient(rgba(56,225,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(56,225,255,.05) 1px,transparent 1px);
+    background-size:44px 44px; mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 80%); }
+  a.back { position:fixed; top:22px; left:28px; z-index:6; font-size:12px; letter-spacing:2px; color:var(--muted); text-decoration:none; }
+  header { position:fixed; top:48px; left:28px; z-index:5; }
+  h1 { margin:0; font-size:15px; letter-spacing:7px; font-weight:600; color:var(--accent); text-shadow:0 0 18px rgba(56,225,255,.5); }
+  .sub { margin-top:4px; font-size:11px; letter-spacing:3px; color:var(--muted); }
+
+  .panel { position:fixed; top:22px; right:24px; z-index:5; width:320px; background:var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:16px 18px; backdrop-filter:blur(10px);
+    box-shadow:0 10px 40px rgba(0,0,0,.5); max-height:calc(100vh - 44px); overflow:auto; }
+  .psi { text-align:center; font-family:"Times New Roman",Georgia,serif; font-size:17px; color:#fff; margin:2px 0 12px; line-height:1.5; }
+  .psi sub,.psi sup { font-size:11px; }
+  select { width:100%; padding:8px; background:rgba(56,225,255,.06); color:var(--text); border:1px solid var(--border); border-radius:8px; font-size:12px; margin-bottom:12px; }
+  .term { border:1px solid var(--border); border-radius:10px; padding:9px 10px; margin-bottom:8px; }
+  .term .hd { display:flex; justify-content:space-between; font-size:11px; letter-spacing:1px; color:var(--muted); margin-bottom:6px; }
+  .term .hd b { color:var(--accent); }
+  .term .lm { display:flex; gap:10px; margin-bottom:6px; }
+  .term .lm label { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; }
+  .term .lm input { width:46px; background:rgba(56,225,255,.06); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:3px 5px; font-size:12px; }
+  .term .sl { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); }
+  .term .sl input[type=range] { flex:1; accent-color:var(--accent); }
+  .sectlabel { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin:12px 0 6px; }
+  .btns { display:flex; gap:6px; flex-wrap:wrap; }
+  .btns button { flex:1 1 44%; padding:8px 4px; font-size:10.5px; cursor:pointer; background:rgba(56,225,255,.06);
+    color:var(--text); border:1px solid var(--border); border-radius:8px; letter-spacing:1px; }
+  .btns button.on { background:rgba(56,225,255,.18); border-color:var(--accent); color:#fff; }
+  .legend { display:flex; justify-content:center; gap:6px; margin-top:12px; font-size:11px; color:var(--muted); align-items:center; }
+  .huebar { width:120px; height:11px; border-radius:3px; background:linear-gradient(90deg,#ff004c,#ffea00,#00ff6e,#00b3ff,#7a00ff,#ff004c); }
+  .hint { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:2px; color:var(--muted); z-index:5; }
+</style>
+<script type="importmap">
+  { "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <canvas id="c"></canvas>
+  <a class="back" href="index.html">‹ PHYSIK</a>
+  <header><h1>SUPERPOSITION</h1><div class="sub">Ψ = Σ cₖ Yₗₖᵐᵏ &nbsp;·&nbsp; ORBITALS FROM INTERFERENCE</div></header>
+
+  <div class="panel">
+    <div class="psi" id="psi">Ψ</div>
+    <select id="preset">
+      <option value="">— jump to a known combination —</option>
+      <option value="sp">s + p_z  →  sp hybrid (directed lobe)</option>
+      <option value="px">Y₁₁ + Y₁₋₁  →  real p_x orbital</option>
+      <option value="py">Y₁₁ − Y₁₋₁  →  real p_y orbital</option>
+      <option value="sp3">s + p_x + p_y + p_z  →  sp³ hybrid</option>
+      <option value="dxy">Y₂₂ + Y₂₋₂  →  real d_xy orbital</option>
+      <option value="beat">Y₁₀ + Y₂₀  →  two-state (try TIME)</option>
+      <option value="ring">Σ Y₄ₘ  →  ring wavepacket</option>
+    </select>
+    <div id="terms"></div>
+    <div class="sectlabel">Options</div>
+    <div class="btns">
+      <button class="toggle" id="t-density">|Ψ|² DENSITY</button>
+      <button class="toggle" id="t-time">TIME EVOLVE</button>
+      <button class="toggle on" id="t-rotate">AUTO-ROTATE</button>
+      <button class="toggle" id="t-wire">WIREFRAME</button>
+    </div>
+    <div class="legend"><i class="huebar"></i> phase of Ψ</div>
+  </div>
+  <div class="hint">drag to orbit · scroll to zoom · amplitude 0 disables a term</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// ---- complex spherical harmonics ----
+function fact(n){let r=1;for(let i=2;i<=n;i++)r*=i;return r;}
+function plgndr(l,m,x){let pmm=1;if(m>0){const s=Math.sqrt((1-x)*(1+x));let f=1;for(let i=1;i<=m;i++){pmm*=-f*s;f+=2;}}if(l===m)return pmm;let p1=x*(2*m+1)*pmm;if(l===m+1)return p1;let pll=0;for(let ll=m+2;ll<=l;ll++){pll=(x*(2*ll-1)*p1-(ll+m-1)*pmm)/(ll-m);pmm=p1;p1=pll;}return pll;}
+// complex Y_l^m(theta,phi) -> [re, im]
+function cY(l,m,theta,phi){
+  const am=Math.abs(m);
+  const N=Math.sqrt((2*l+1)/(4*Math.PI)*fact(l-am)/fact(l+am));
+  let base=N*plgndr(l,am,Math.cos(theta));
+  if(m<0 && (am%2===1)) base=-base;            // (-1)^m for negative m
+  return [base*Math.cos(m*phi), base*Math.sin(m*phi)];
+}
+
+// ---- state: 4 term slots ----
+let terms = [
+  {l:0,m:0,amp:1,ph:0},
+  {l:1,m:0,amp:1,ph:0},
+  {l:2,m:0,amp:0,ph:0},
+  {l:3,m:0,amp:0,ph:0},
+];
+let opts = { density:false, time:false };
+
+// ---- three.js ----
+const canvas=document.getElementById("c");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,1,0.1,100); camera.position.set(4.6,3.2,4.6);
+const controls=new OrbitControls(camera,canvas); controls.enableDamping=true; controls.autoRotate=true; controls.autoRotateSpeed=1.0; controls.minDistance=3; controls.maxDistance=18;
+scene.add(new THREE.AmbientLight(0xffffff,0.55));
+const k=new THREE.DirectionalLight(0xffffff,1); k.position.set(4,6,5); scene.add(k);
+const rim=new THREE.DirectionalLight(0x66ccff,.6); rim.position.set(-5,-2,-4); scene.add(rim);
+const material=new THREE.MeshPhongMaterial({vertexColors:true,shininess:28,specular:0x223344,side:THREE.DoubleSide});
+let mesh=null;
+const TH=96, PH=192;
+
+function buildMesh(t){
+  const active=terms.filter(tm=>tm.amp>0.0001);
+  const verts=(TH+1)*(PH+1);
+  const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
+  // precompute time-evolved complex coefficients
+  const coef=active.map(tm=>{
+    const w=opts.time ? tm.l*(tm.l+1)*0.25*t : 0;     // toy energy ~ l(l+1)
+    const ang=tm.ph*Math.PI/180 + w;
+    return {l:tm.l,m:tm.m,cr:tm.amp*Math.cos(ang),ci:tm.amp*Math.sin(ang)};
+  });
+  const mags=new Float32Array(verts); const phases=new Float32Array(verts);
+  let maxM=1e-9,idx=0;
+  for(let i=0;i<=TH;i++){const th=i/TH*Math.PI;
+    for(let j=0;j<=PH;j++){const ph=j/PH*2*Math.PI;
+      let re=0,im=0;
+      for(const c of coef){ const y=cY(c.l,c.m,th,ph); re+=c.cr*y[0]-c.ci*y[1]; im+=c.cr*y[1]+c.ci*y[0]; }
+      let mg=Math.hypot(re,im); mags[idx]=mg; phases[idx]=Math.atan2(im,re); if(mg>maxM)maxM=mg; idx++;
+    }}
+  idx=0; const c=new THREE.Color();
+  for(let i=0;i<=TH;i++){const th=i/TH*Math.PI,st=Math.sin(th),ct=Math.cos(th);
+    for(let j=0;j<=PH;j++){const ph=j/PH*2*Math.PI;
+      let mg=mags[idx]/maxM; if(opts.density) mg=mg*mg;
+      const R=0.12+1.7*mg;
+      pos[idx*3]=st*Math.cos(ph)*R; pos[idx*3+1]=ct*R; pos[idx*3+2]=st*Math.sin(ph)*R;
+      let hue=((phases[idx]/(2*Math.PI))%1+1)%1;
+      c.setHSL(hue,0.82,0.34+0.34*Math.min(1,mags[idx]/maxM));
+      col[idx*3]=c.r; col[idx*3+1]=c.g; col[idx*3+2]=c.b; idx++;
+    }}
+  const ind=[]; const row=PH+1;
+  for(let i=0;i<TH;i++)for(let j=0;j<PH;j++){const a=i*row+j;ind.push(a,a+row,a+1,a+1,a+row,a+row+1);}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  g.setAttribute("color",new THREE.BufferAttribute(col,3));
+  g.setIndex(ind); g.computeVertexNormals();
+  if(mesh){mesh.geometry.dispose();mesh.geometry=g;} else {mesh=new THREE.Mesh(g,material);scene.add(mesh);}
+}
+
+// ---- term UI ----
+const termsEl=document.getElementById("terms");
+const psiEl=document.getElementById("psi");
+function renderTerms(){
+  termsEl.innerHTML="";
+  terms.forEach((tm,i)=>{
+    const d=document.createElement("div"); d.className="term";
+    d.innerHTML=`<div class="hd"><span>TERM ${i+1}</span><b>Y<sub>${tm.l}</sub><sup>${tm.m}</sup></b></div>
+      <div class="lm"><label>ℓ <input type="number" class="tl" min="0" max="8" value="${tm.l}"></label>
+      <label>m <input type="number" class="tm" min="${-tm.l}" max="${tm.l}" value="${tm.m}"></label></div>
+      <div class="sl">amp<input type="range" class="ta" min="0" max="1" step="0.05" value="${tm.amp}"></div>
+      <div class="sl">φ°<input type="range" class="tp" min="0" max="360" step="5" value="${tm.ph}"></div>`;
+    d.querySelector(".tl").addEventListener("input",e=>{tm.l=Math.max(0,Math.min(8,+e.target.value||0)); tm.m=Math.max(-tm.l,Math.min(tm.l,tm.m)); renderTerms(); rebuild();});
+    d.querySelector(".tm").addEventListener("input",e=>{tm.m=Math.max(-tm.l,Math.min(tm.l,+e.target.value||0)); updPsi(); rebuild();});
+    d.querySelector(".ta").addEventListener("input",e=>{tm.amp=+e.target.value; updPsi(); rebuild();});
+    d.querySelector(".tp").addEventListener("input",e=>{tm.ph=+e.target.value; rebuild();});
+    termsEl.appendChild(d);
+  });
+  updPsi();
+}
+function updPsi(){
+  const parts=terms.filter(t=>t.amp>0.0001).map(t=>{
+    const a=Math.abs(t.amp-1)<0.01?"":t.amp.toFixed(2)+"·";
+    return `${a}Y<sub>${t.l}</sub><sup>${t.m}</sup>`;
+  });
+  psiEl.innerHTML="Ψ = "+(parts.length?parts.join(" + "):"0");
+}
+
+let phase=0;
+function rebuild(){ if(!opts.time) buildMesh(0); }
+
+// ---- presets ----
+const presets={
+  sp:[[0,0,1,0],[1,0,1,0],[0,0,0,0],[0,0,0,0]],
+  px:[[1,1,1,0],[1,-1,1,0],[0,0,0,0],[0,0,0,0]],
+  py:[[1,1,1,0],[1,-1,1,180],[0,0,0,0],[0,0,0,0]],
+  sp3:[[0,0,1,0],[1,0,1,0],[1,1,1,0],[1,-1,1,0]],
+  dxy:[[2,2,1,0],[2,-2,1,0],[0,0,0,0],[0,0,0,0]],
+  beat:[[1,0,1,0],[2,0,1,0],[0,0,0,0],[0,0,0,0]],
+  ring:[[4,0,1,0],[4,2,1,0],[4,4,1,0],[4,-2,1,0]],
+};
+document.getElementById("preset").addEventListener("change",e=>{
+  const p=presets[e.target.value]; if(!p) return;
+  terms=p.map(([l,m,amp,ph])=>({l,m,amp,ph}));
+  e.target.value=""; renderTerms(); rebuild();
+});
+
+// ---- toggles ----
+function toggle(id,fn){const el=document.getElementById(id);el.addEventListener("click",()=>{el.classList.toggle("on");fn(el.classList.contains("on"));});}
+toggle("t-density",v=>{opts.density=v;rebuild();});
+toggle("t-time",v=>{opts.time=v; if(!v) buildMesh(0);});
+toggle("t-rotate",v=>{controls.autoRotate=v;});
+toggle("t-wire",v=>{material.wireframe=v;});
+
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
+addEventListener("resize",resize); resize();
+renderTerms(); buildMesh(0);
+
+renderer.setAnimationLoop(()=>{
+  controls.update();
+  if(opts.time){ phase+=0.02; buildMesh(phase); }
+  renderer.render(scene,camera);
+});
+</script>
+</body>
+</html>
