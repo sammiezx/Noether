@@ -38,6 +38,21 @@
 </script>
 </head>
 <body>
+<style>
+/* --- mobile: scene panel becomes a collapsible bottom sheet --- */
+#panel-toggle{display:none;position:fixed;z-index:300;top:12px;right:14px;align-items:center;gap:6px;
+  background:rgba(56,225,255,.16);border:1px solid var(--accent,#38e1ff);color:var(--accent,#38e1ff);
+  border-radius:20px;padding:8px 14px;font-size:12px;letter-spacing:1px;cursor:pointer;}
+@media (max-width:680px){
+  .panel{top:auto!important;bottom:0!important;left:0!important;right:0!important;width:auto!important;max-width:none!important;
+    max-height:48vh;overflow-y:auto;border-radius:16px 16px 0 0;
+    padding:12px 14px calc(16px + env(safe-area-inset-bottom))!important;transition:transform .28s ease;}
+  body.panel-collapsed .panel{transform:translateY(100%);}
+  #panel-toggle{display:flex!important;}
+  a.back{top:13px!important;left:14px!important;} .hint{display:none!important;}
+}
+</style>
+<button id="panel-toggle" onclick="document.body.classList.toggle('panel-collapsed')">⚙ Controls</button>
   <a class="back" href="index.html">‹ PHYSIK</a>
 
   <!-- engine target (IDs must match spacetime.js) -->
