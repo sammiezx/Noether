@@ -89,11 +89,12 @@
       Redshifted &nbsp;<b class="a">a·‖ξ‖ = κ = <span id="ro-k">1.00</span></b><br>
       Local temp &nbsp;<b>T = κ/2π‖ξ‖ = <span id="ro-t">0.20</span></b>
     </div>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--affine)"></i> affine ruler</span>
-      <span><i class="dot" style="background:var(--killing)"></i> Killing ruler (e<sup>κv</sup>)</span>
+    <div class="legend" style="flex-wrap:wrap;gap:10px 16px">
+      <span><i class="dot" style="background:#78ffb4"></i> ξ (tangent / flow)</span>
+      <span><i class="dot" style="background:#ff5aa0"></i> ξ·∇ξ (acceleration)</span>
+      <span><i class="dot" style="background:var(--killing)"></i> Killing orbit</span>
     </div>
-    <div class="note">Pull ρ off the horizon: the Killing orbit lifts into a timelike hyperbola (an accelerated observer). ‖ξ‖→0 at the horizon, where ξ goes null and the flow is non-affine — yet the <b style="color:#9fb8ff">redshifted</b> acceleration a·‖ξ‖ stays equal to κ everywhere.</div>
+    <div class="note"><b style="color:#78ffb4">ξ</b> is the flow's own vector (the LHS); <b style="color:#ff5aa0">ξ·∇ξ</b> is the RHS — the acceleration, pointing radially out of the bifurcation point. Off the horizon they tilt apart; ride the orbit out toward the generator and they swing into alignment — that's <b>ξ·∇ξ = κξ</b>. The magenta arrow is κ× the green one, so its length reads off the surface gravity.</div>
   </div>
   <div class="hint">slide ρ → 0 and watch the orbit flatten onto the horizon · ξ goes null</div>
 
@@ -185,16 +186,19 @@ function frame(now){
     if(vi>40) break;
   }
 
-  // --- the flowing observer: its Killing orbit ---
+  // --- the flowing observer: its Killing orbit + the two vectors of  ξ·∇ξ = κξ ---
   const rho = state.rho, onHor = rho < 0.05;
   if(state.playing){ state.v += dt*state.speed*0.6; }
-  let px, py;
+  const AL = Math.min(w,h)*0.075;          // base (reference) arrow length
+  let px, py, xiux, xiuy, acux, acuy;      // point + unit screen dirs of ξ and ξ·∇ξ
 
   if(onHor){
     // ON the horizon: ξ is null → exponential (non-affine) slide along the generator
     const amin=0.06*amax, vlo=Math.log(amin*k)/k, vhi=Math.log(amax*k)/k;
     if(state.v>vhi || state.v<vlo) state.v=vlo;
     const a=Math.exp(k*state.v)/k; px=cx+a*S; py=cy-a*S;
+    // both vectors lie along the null generator → ξ·∇ξ = κξ exactly
+    xiux=0.707; xiuy=-0.707; acux=0.707; acuy=-0.707;
   } else {
     // OFF the horizon: timelike Killing orbit  X=ρcosh(κv), T=ρsinh(κv)
     const vhi=Math.acosh(Math.min(60, amax/rho))/k;
@@ -207,19 +211,28 @@ function frame(now){
     for(let i=0;i<=90;i++){ const s=-vhi*k+2*vhi*k*i/90; const Xo=rho*Math.cosh(s),To=rho*Math.sinh(s);
       const x=cx+Xo*S,y=cy-To*S; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
     ctx.stroke();
-    // ξ at the point — coordinate tangent (T, X); shrinks & tilts to null as ρ→0
-    const tl=Math.hypot(T,X)||1, al=Math.max(20, rho*S*0.55);
-    const ex=px+(T/tl)*al, ey=py-(X/tl)*al;
-    ctx.strokeStyle="rgba(120,255,180,0.95)"; ctx.lineWidth=2.5;
+    // ξ  = orbit tangent, coordinate vector (T, X)  → screen (T, −X)
+    const tl=Math.hypot(T,X)||1; xiux=T/tl; xiuy=-X/tl;
+    // ξ·∇ξ = acceleration, points radially OUT from the bifurcation: (X, T) → screen (X, −T)
+    const rl=Math.hypot(X,T)||1; acux=X/rl; acuy=-T/rl;
+  }
+
+  // arrow helper
+  function arrow(ux,uy,len,color,label){
+    const ex=px+ux*len, ey=py+uy*len, ang=Math.atan2(uy,ux);
+    ctx.strokeStyle=color; ctx.lineWidth=2.5;
     ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(ex,ey); ctx.stroke();
-    const ang=Math.atan2(ey-py,ex-px);
     ctx.beginPath(); ctx.moveTo(ex,ey);
     ctx.lineTo(ex-9*Math.cos(ang-0.4), ey-9*Math.sin(ang-0.4));
     ctx.lineTo(ex-9*Math.cos(ang+0.4), ey-9*Math.sin(ang+0.4));
-    ctx.closePath(); ctx.fillStyle="rgba(120,255,180,0.95)"; ctx.fill();
-    ctx.fillStyle="rgba(120,255,180,0.9)"; ctx.font="italic 12px 'Times New Roman',serif";
-    ctx.fillText("ξ", ex+5, ey-2);
+    ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+    ctx.font="italic 13px 'Times New Roman',serif"; ctx.fillStyle=color;
+    ctx.fillText(label, ex+5, ey+(uy<0?-3:13));
   }
+  // RHS: ξ·∇ξ, length scaled by κ so on the horizon it overlays κ·ξ
+  arrow(acux,acuy, AL*k, "rgba(255,90,160,0.95)", "ξ·∇ξ");
+  // LHS: ξ (tangent), reference length
+  arrow(xiux,xiuy, AL, "rgba(120,255,180,0.95)", "ξ");
 
   // glow + point
   const g=ctx.createRadialGradient(px,py,0,px,py,16);
