@@ -32,6 +32,9 @@
   .readout { margin-top:14px; font-size:12px; line-height:1.7; color:var(--muted); border-top:1px solid var(--border); padding-top:12px; }
   .readout b { color:var(--text); font-variant-numeric:tabular-nums; }
   .readout .k { color:var(--killing); } .readout .a { color:var(--affine); }
+  .status { font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-bottom:9px; padding:5px 9px;
+    border-radius:6px; text-align:center; background:rgba(120,255,180,.1); color:#9fffc8; border:1px solid rgba(120,255,180,.3); }
+  .status.onhor { background:rgba(56,225,255,.12); color:var(--accent); border-color:rgba(56,225,255,.4); }
   .legend { display:flex; justify-content:center; gap:16px; margin-top:14px; font-size:11px; color:var(--muted); }
   .legend span { display:inline-flex; align-items:center; gap:6px; }
   .dot { width:11px; height:11px; border-radius:3px; }
@@ -67,6 +70,8 @@
 
     <div class="row"><label>Surface gravity &nbsp;κ <b id="kval">1.00</b></label>
       <input type="range" id="kappa" min="0" max="2.5" step="0.05" value="1" /></div>
+    <div class="row"><label>Off-horizon distance &nbsp;ρ <b id="rval">0.80</b></label>
+      <input type="range" id="rho" min="0" max="3" step="0.05" value="0.8" /></div>
     <div class="row"><label>Flow speed <b id="sval">1.0</b></label>
       <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1" /></div>
 
@@ -77,17 +82,20 @@
     </div>
 
     <div class="readout">
-      Killing time &nbsp;<b class="k">v = <span id="ro-v">0.00</span></b><br>
-      Affine param &nbsp;<b class="a">λ = <span id="ro-l">0.00</span></b><br>
-      Hawking temp &nbsp;<b>T = κ/2π = <span id="ro-t">0.16</span></b>
+      <div id="ro-status" class="status">OFF HORIZON · ξ is timelike</div>
+      Killing time &nbsp;<b>v = <span id="ro-v">0.00</span></b><br>
+      Killing norm &nbsp;<b class="k">‖ξ‖ = ρ = <span id="ro-n">0.80</span></b><br>
+      Proper accel &nbsp;<b>a = κ/‖ξ‖ = <span id="ro-a">1.25</span></b><br>
+      Redshifted &nbsp;<b class="a">a·‖ξ‖ = κ = <span id="ro-k">1.00</span></b><br>
+      Local temp &nbsp;<b>T = κ/2π‖ξ‖ = <span id="ro-t">0.20</span></b>
     </div>
     <div class="legend">
-      <span><i class="dot" style="background:var(--affine)"></i> affine ticks (uniform)</span>
-      <span><i class="dot" style="background:var(--killing)"></i> Killing ticks (e<sup>κv</sup>)</span>
+      <span><i class="dot" style="background:var(--affine)"></i> affine ruler</span>
+      <span><i class="dot" style="background:var(--killing)"></i> Killing ruler (e<sup>κv</sup>)</span>
     </div>
-    <div class="note">Equal steps of Killing time → exponentially growing affine steps. κ is the non-affinity. As κ→0 the two coincide — the extremal, zero-temperature limit.</div>
+    <div class="note">Pull ρ off the horizon: the Killing orbit lifts into a timelike hyperbola (an accelerated observer). ‖ξ‖→0 at the horizon, where ξ goes null and the flow is non-affine — yet the <b style="color:#9fb8ff">redshifted</b> acceleration a·‖ξ‖ stays equal to κ everywhere.</div>
   </div>
-  <div class="hint">the dot advances by equal Killing-time steps — watch it accelerate along the affine ruler</div>
+  <div class="hint">slide ρ → 0 and watch the orbit flatten onto the horizon · ξ goes null</div>
 
 <script>
 const cv = document.getElementById("c"), ctx = cv.getContext("2d");
@@ -95,13 +103,15 @@ const dpr = Math.min(devicePixelRatio || 1, 2);
 function resize(){ cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
 addEventListener("resize", resize); resize();
 
-const state = { kappa:1.0, speed:1.0, playing:true, orbits:true, v:0 };
+const state = { kappa:1.0, speed:1.0, rho:0.8, playing:true, orbits:true, v:0 };
 
-const kS=document.getElementById("kappa"), sS=document.getElementById("speed");
-const kval=document.getElementById("kval"), sval=document.getElementById("sval");
-const roV=document.getElementById("ro-v"), roL=document.getElementById("ro-l"), roT=document.getElementById("ro-t");
+const kS=document.getElementById("kappa"), sS=document.getElementById("speed"), rS=document.getElementById("rho");
+const kval=document.getElementById("kval"), sval=document.getElementById("sval"), rval=document.getElementById("rval");
+const roV=document.getElementById("ro-v"), roN=document.getElementById("ro-n"), roA=document.getElementById("ro-a"),
+      roK=document.getElementById("ro-k"), roT=document.getElementById("ro-t"), roStat=document.getElementById("ro-status");
 kS.addEventListener("input",()=>{ state.kappa=+kS.value; kval.textContent=state.kappa.toFixed(2); });
 sS.addEventListener("input",()=>{ state.speed=+sS.value; sval.textContent=state.speed.toFixed(1); });
+rS.addEventListener("input",()=>{ state.rho=+rS.value; rval.textContent=state.rho.toFixed(2); });
 const playB=document.getElementById("t-play");
 playB.addEventListener("click",()=>{ state.playing=!state.playing; playB.textContent=state.playing?"⏸ PAUSE":"▶ PLAY"; playB.classList.toggle("on",state.playing); });
 const orbB=document.getElementById("t-orbits");
@@ -175,14 +185,43 @@ function frame(now){
     if(vi>40) break;
   }
 
-  // --- the flowing point: advances by equal Killing time v ---
-  const amin = 0.06*amax;
-  const vmin = Math.log(amin*k)/k, vmax = Math.log(amax*k)/k;
+  // --- the flowing observer: its Killing orbit ---
+  const rho = state.rho, onHor = rho < 0.05;
   if(state.playing){ state.v += dt*state.speed*0.6; }
-  if(state.v>vmax || state.v<vmin) state.v = vmin;
-  const a = Math.exp(k*state.v)/k;
-  const px=cx+a*S, py=cy-a*S;
-  // glow
+  let px, py;
+
+  if(onHor){
+    // ON the horizon: ξ is null → exponential (non-affine) slide along the generator
+    const amin=0.06*amax, vlo=Math.log(amin*k)/k, vhi=Math.log(amax*k)/k;
+    if(state.v>vhi || state.v<vlo) state.v=vlo;
+    const a=Math.exp(k*state.v)/k; px=cx+a*S; py=cy-a*S;
+  } else {
+    // OFF the horizon: timelike Killing orbit  X=ρcosh(κv), T=ρsinh(κv)
+    const vhi=Math.acosh(Math.min(60, amax/rho))/k;
+    if(state.v>vhi || state.v<-vhi) state.v=-vhi;
+    const sig=k*state.v, X=rho*Math.cosh(sig), T=rho*Math.sinh(sig);
+    px=cx+X*S; py=cy-T*S;
+    // the selected orbit hyperbola (bright)
+    ctx.strokeStyle="rgba(255,174,87,0.85)"; ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let i=0;i<=90;i++){ const s=-vhi*k+2*vhi*k*i/90; const Xo=rho*Math.cosh(s),To=rho*Math.sinh(s);
+      const x=cx+Xo*S,y=cy-To*S; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke();
+    // ξ at the point — coordinate tangent (T, X); shrinks & tilts to null as ρ→0
+    const tl=Math.hypot(T,X)||1, al=Math.max(20, rho*S*0.55);
+    const ex=px+(T/tl)*al, ey=py-(X/tl)*al;
+    ctx.strokeStyle="rgba(120,255,180,0.95)"; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(ex,ey); ctx.stroke();
+    const ang=Math.atan2(ey-py,ex-px);
+    ctx.beginPath(); ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-9*Math.cos(ang-0.4), ey-9*Math.sin(ang-0.4));
+    ctx.lineTo(ex-9*Math.cos(ang+0.4), ey-9*Math.sin(ang+0.4));
+    ctx.closePath(); ctx.fillStyle="rgba(120,255,180,0.95)"; ctx.fill();
+    ctx.fillStyle="rgba(120,255,180,0.9)"; ctx.font="italic 12px 'Times New Roman',serif";
+    ctx.fillText("ξ", ex+5, ey-2);
+  }
+
+  // glow + point
   const g=ctx.createRadialGradient(px,py,0,px,py,16);
   g.addColorStop(0,"rgba(255,255,255,0.95)"); g.addColorStop(1,"rgba(56,225,255,0)");
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,16,0,6.283); ctx.fill();
@@ -190,8 +229,16 @@ function frame(now){
 
   // readouts
   roV.textContent = state.v.toFixed(2);
-  roL.textContent = a.toFixed(2);
-  roT.textContent = (k/(2*Math.PI)).toFixed(3);
+  roK.textContent = k.toFixed(2);
+  if(onHor){
+    roStat.textContent="ON HORIZON · ξ null · non-affine (κ)"; roStat.classList.add("onhor");
+    roN.textContent="0.00"; roA.textContent="∞"; roT.textContent="∞";
+  } else {
+    roStat.textContent="OFF HORIZON · ξ timelike"; roStat.classList.remove("onhor");
+    roN.textContent=rho.toFixed(2);
+    roA.textContent=(k/rho).toFixed(2);
+    roT.textContent=(k/(2*Math.PI*rho)).toFixed(3);
+  }
 
   requestAnimationFrame(frame);
 }
