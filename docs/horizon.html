@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Surface Gravity & Non-Affinity — Physik</title>
+<style>
+  :root { --bg:#05070d; --panel:rgba(10,16,28,0.82); --border:#1d2b44; --accent:#38e1ff; --text:#cbd5e1; --muted:#6b7d99;
+    --affine:#38e1ff; --killing:#ffae57; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,system-ui,"Segoe UI",sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
+  a.back { position:fixed; top:22px; left:28px; z-index:6; font-size:12px; letter-spacing:2px; color:var(--muted); text-decoration:none; }
+  header { position:fixed; top:48px; left:28px; z-index:5; }
+  h1 { margin:0; font-size:15px; letter-spacing:6px; font-weight:600; color:var(--accent); text-shadow:0 0 18px rgba(56,225,255,.5); }
+  .sub { margin-top:4px; font-size:11px; letter-spacing:3px; color:var(--muted); }
+
+  .panel { position:fixed; top:22px; right:24px; z-index:5; width:312px; background:var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:16px 18px 18px; backdrop-filter:blur(10px);
+    box-shadow:0 10px 40px rgba(0,0,0,.5); max-height:calc(100vh - 44px); overflow:auto; }
+  .eq { text-align:center; font-family:"Times New Roman",Georgia,serif; color:#fff; font-size:18px; margin:2px 0 4px; }
+  .eq.small { font-size:14px; color:var(--muted); }
+  .row { margin:12px 0; }
+  .row label { display:flex; justify-content:space-between; font-size:11px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+  .row label b { color:var(--accent); font-size:13px; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .btns { display:flex; gap:6px; margin-top:8px; }
+  .btns button { flex:1; padding:8px 6px; font-size:11px; cursor:pointer; background:rgba(56,225,255,.06); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; letter-spacing:1px; }
+  .btns button.on { background:rgba(56,225,255,.18); border-color:var(--accent); color:#fff; }
+  .readout { margin-top:14px; font-size:12px; line-height:1.7; color:var(--muted); border-top:1px solid var(--border); padding-top:12px; }
+  .readout b { color:var(--text); font-variant-numeric:tabular-nums; }
+  .readout .k { color:var(--killing); } .readout .a { color:var(--affine); }
+  .legend { display:flex; justify-content:center; gap:16px; margin-top:14px; font-size:11px; color:var(--muted); }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:11px; height:11px; border-radius:3px; }
+  .note { font-size:10.5px; color:var(--muted); text-align:center; margin-top:12px; line-height:1.5; }
+  .hint { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:2px; color:var(--muted); z-index:5; }
+</style>
+</head>
+<body>
+<style>
+/* --- mobile: viz full-screen; controls in a toggle bottom sheet --- */
+#panel-toggle{display:none;position:fixed;z-index:300;top:12px;right:14px;align-items:center;gap:6px;
+  background:rgba(56,225,255,.18);border:1px solid var(--accent,#38e1ff);color:var(--accent,#38e1ff);
+  border-radius:20px;padding:9px 16px;font-size:13px;letter-spacing:1px;cursor:pointer;font-family:inherit;}
+@media (max-width:680px){
+  .panel{top:auto!important;bottom:0!important;left:0!important;right:0!important;width:auto!important;max-width:none!important;
+    max-height:62vh;overflow-y:auto;border-radius:16px 16px 0 0;
+    padding:14px 16px calc(18px + env(safe-area-inset-bottom))!important;transform:translateY(105%);transition:transform .28s ease;}
+  body.panel-open .panel{transform:translateY(0)!important;}
+  #panel-toggle{display:flex!important;}
+  a.back{top:13px!important;left:14px!important;} header{top:40px!important;left:14px!important;}
+  h1{font-size:12px!important;letter-spacing:4px!important;} .sub{display:none!important;} .hint{display:none!important;}
+}
+</style>
+<button id="panel-toggle" onclick="var o=document.body.classList.toggle('panel-open');this.textContent=o?'✕ Close':'⚙ Controls';">⚙ Controls</button>
+
+  <canvas id="c"></canvas>
+  <a class="back" href="index.html">‹ PHYSIK</a>
+  <header><h1>HORIZONS</h1><div class="sub">SURFACE GRAVITY &amp; THE NON-AFFINE KILLING FLOW</div></header>
+
+  <div class="panel">
+    <div class="eq">ξ<sup>a</sup>∇<sub>a</sub>ξ<sup>b</sup> = κ ξ<sup>b</sup></div>
+    <div class="eq small">λ = e<sup>κv</sup> ⁄ κ &nbsp;(affine ⟷ Killing v)</div>
+
+    <div class="row"><label>Surface gravity &nbsp;κ <b id="kval">1.00</b></label>
+      <input type="range" id="kappa" min="0" max="2.5" step="0.05" value="1" /></div>
+    <div class="row"><label>Flow speed <b id="sval">1.0</b></label>
+      <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1" /></div>
+
+    <div class="btns">
+      <button class="toggle on" id="t-play">⏸ PAUSE</button>
+      <button class="toggle on" id="t-orbits">BOOST ORBITS</button>
+      <button id="t-reset">⟳ RESET</button>
+    </div>
+
+    <div class="readout">
+      Killing time &nbsp;<b class="k">v = <span id="ro-v">0.00</span></b><br>
+      Affine param &nbsp;<b class="a">λ = <span id="ro-l">0.00</span></b><br>
+      Hawking temp &nbsp;<b>T = κ/2π = <span id="ro-t">0.16</span></b>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--affine)"></i> affine ticks (uniform)</span>
+      <span><i class="dot" style="background:var(--killing)"></i> Killing ticks (e<sup>κv</sup>)</span>
+    </div>
+    <div class="note">Equal steps of Killing time → exponentially growing affine steps. κ is the non-affinity. As κ→0 the two coincide — the extremal, zero-temperature limit.</div>
+  </div>
+  <div class="hint">the dot advances by equal Killing-time steps — watch it accelerate along the affine ruler</div>
+
+<script>
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+const dpr = Math.min(devicePixelRatio || 1, 2);
+function resize(){ cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+addEventListener("resize", resize); resize();
+
+const state = { kappa:1.0, speed:1.0, playing:true, orbits:true, v:0 };
+
+const kS=document.getElementById("kappa"), sS=document.getElementById("speed");
+const kval=document.getElementById("kval"), sval=document.getElementById("sval");
+const roV=document.getElementById("ro-v"), roL=document.getElementById("ro-l"), roT=document.getElementById("ro-t");
+kS.addEventListener("input",()=>{ state.kappa=+kS.value; kval.textContent=state.kappa.toFixed(2); });
+sS.addEventListener("input",()=>{ state.speed=+sS.value; sval.textContent=state.speed.toFixed(1); });
+const playB=document.getElementById("t-play");
+playB.addEventListener("click",()=>{ state.playing=!state.playing; playB.textContent=state.playing?"⏸ PAUSE":"▶ PLAY"; playB.classList.toggle("on",state.playing); });
+const orbB=document.getElementById("t-orbits");
+orbB.addEventListener("click",()=>{ state.orbits=!state.orbits; orbB.classList.toggle("on",state.orbits); });
+document.getElementById("t-reset").addEventListener("click",()=>{ state.v=0; });
+
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  const w=innerWidth, h=innerHeight;
+  const cx=w*0.36, cy=h*0.64;                 // origin: lower-left, room for the up-right wedge
+  const S=Math.min(w,h)*0.15;                  // px per unit
+  const k=Math.max(0.0001, state.kappa);
+  // how far up-right the horizon ray fits on screen
+  const amax = 0.92*Math.min(w-cx, cy)/S;
+
+  ctx.clearRect(0,0,w,h);
+
+  // --- faint axes ---
+  ctx.strokeStyle="rgba(120,150,190,0.12)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(w,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
+
+  // --- boost-orbit hyperbolae (right Rindler wedge): X^2 - T^2 = rho^2 ---
+  if(state.orbits){
+    ctx.strokeStyle="rgba(120,150,190,0.18)"; ctx.lineWidth=1;
+    for(let rho=0.6; rho<amax*0.95; rho+=Math.max(0.6, amax/7)){
+      ctx.beginPath();
+      for(let i=0;i<=60;i++){
+        const sig=-2.4 + 4.8*i/60; const X=rho*Math.cosh(sig), T=rho*Math.sinh(sig);
+        if(X>amax*1.2) continue;
+        const x=cx+X*S, y=cy-T*S; i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // --- null lines (light cone / horizons) through origin ---
+  ctx.lineWidth=1.5;
+  ctx.strokeStyle="rgba(120,150,190,0.35)";
+  // past/other null directions (context)
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx-cy, cy+cy); ctx.stroke();           // down-left
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx-(h-cy), cy-(h-cy)); ctx.stroke();    // up-left (other horizon)
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+(h-cy), cy+(h-cy)); ctx.stroke();    // down-right
+  // THE future horizon generator (up-right), highlighted
+  const tip = amax;
+  ctx.strokeStyle="rgba(56,225,255,0.9)"; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+tip*S, cy-tip*S); ctx.stroke();
+  // label
+  ctx.fillStyle="rgba(56,225,255,0.8)"; ctx.font="600 11px -apple-system,system-ui";
+  ctx.fillText("future horizon  (null generator)", cx+tip*S*0.42, cy-tip*S*0.42-10);
+
+  // helper: place a tick perpendicular to the 45° ray at affine coord a
+  function tickAt(a, color, len, label){
+    if(a<=0 || a>amax) return;
+    const x=cx+a*S, y=cy-a*S;
+    // perpendicular to (1,-1) is (1,1) (down-right), normalized
+    const nx=0.707, ny=0.707;
+    ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x-nx*len, y-ny*len); ctx.lineTo(x+nx*len, y+ny*len); ctx.stroke();
+    if(label){ ctx.fillStyle=color; ctx.font="10px -apple-system,system-ui"; ctx.fillText(label, x+nx*len+3, y+ny*len+3); }
+  }
+
+  // --- affine ticks: uniform in a ---
+  const da = amax/8;
+  for(let n=1;n<=8;n++) tickAt(n*da, "rgba(56,225,255,0.85)", 8, n===8?"λ":"");
+  // --- Killing ticks: at a = e^{k v}/k for v = 0,1,2,... ---
+  for(let vi=0; ; vi++){
+    const a = Math.exp(k*vi)/k;
+    if(a>amax) break;
+    tickAt(a, "rgba(255,174,87,0.9)", 12, "v="+vi);
+    if(vi>40) break;
+  }
+
+  // --- the flowing point: advances by equal Killing time v ---
+  const amin = 0.06*amax;
+  const vmin = Math.log(amin*k)/k, vmax = Math.log(amax*k)/k;
+  if(state.playing){ state.v += dt*state.speed*0.6; }
+  if(state.v>vmax || state.v<vmin) state.v = vmin;
+  const a = Math.exp(k*state.v)/k;
+  const px=cx+a*S, py=cy-a*S;
+  // glow
+  const g=ctx.createRadialGradient(px,py,0,px,py,16);
+  g.addColorStop(0,"rgba(255,255,255,0.95)"); g.addColorStop(1,"rgba(56,225,255,0)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,16,0,6.283); ctx.fill();
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(px,py,4,0,6.283); ctx.fill();
+
+  // readouts
+  roV.textContent = state.v.toFixed(2);
+  roL.textContent = a.toFixed(2);
+  roT.textContent = (k/(2*Math.PI)).toFixed(3);
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
