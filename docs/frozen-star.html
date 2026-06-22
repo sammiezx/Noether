@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Frozen Star — Physik</title>
+<style>
+  :root { --bg:#05070d; --panel:rgba(10,16,28,0.82); --border:#1d2b44; --accent:#38e1ff;
+    --text:#cbd5e1; --muted:#6b7d99; --amber:#ffae57; --red:#ff5a3c; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,system-ui,"Segoe UI",sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
+  a.back { position:fixed; top:22px; left:28px; z-index:6; font-size:12px; letter-spacing:2px; color:var(--muted); text-decoration:none; }
+  a.back:hover { color:var(--accent); }
+  header { position:fixed; top:48px; left:28px; z-index:5; }
+  h1 { margin:0; font-size:15px; letter-spacing:6px; font-weight:600; color:var(--accent); text-shadow:0 0 18px rgba(56,225,255,.5); }
+  .sub { margin-top:4px; font-size:11px; letter-spacing:3px; color:var(--muted); }
+
+  .panel { position:fixed; top:22px; right:24px; z-index:5; width:320px; background:var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:16px 18px 18px; backdrop-filter:blur(10px);
+    box-shadow:0 10px 40px rgba(0,0,0,.5); max-height:calc(100vh - 44px); overflow:auto; }
+  .eq { text-align:center; font-family:"Times New Roman",Georgia,serif; color:#fff; font-size:18px; margin:2px 0 2px; }
+  .eq small { color:var(--muted); font-size:12px; }
+  .status { font-size:11px; letter-spacing:2px; text-transform:uppercase; margin:10px 0 4px; padding:5px 9px;
+    border-radius:6px; text-align:center; background:rgba(120,255,180,.1); color:#9fffc8; border:1px solid rgba(120,255,180,.3); }
+  .status.frozen { background:rgba(255,90,60,.12); color:var(--red); border-color:rgba(255,90,60,.4); }
+  .btns { display:flex; gap:6px; margin-top:10px; }
+  .btns button { flex:1; padding:8px 6px; font-size:11px; cursor:pointer; background:rgba(56,225,255,.06); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; letter-spacing:1px; font-family:inherit; }
+  .btns button:hover { background:rgba(56,225,255,.16); border-color:var(--accent); color:#fff; }
+  .row { margin:12px 0 2px; }
+  .row label { display:flex; justify-content:space-between; font-size:11px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+  .row label b { color:var(--accent); font-size:13px; font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:var(--accent); cursor:pointer; }
+  .readout { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; font-size:12px;
+    border-top:1px solid var(--border); padding-top:12px; }
+  .readout .k { color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+  .readout b { color:var(--text); font-variant-numeric:tabular-nums; font-size:14px; display:block; margin-top:1px; }
+  canvas.mini { width:100%; height:auto; display:block; border:1px solid var(--border); border-radius:8px; margin-top:14px; background:#070b16; }
+  .cap { font-size:10.5px; color:var(--muted); text-align:center; margin-top:6px; line-height:1.5; }
+  .hr { border-top:1px solid var(--border); margin:14px 0 0; }
+  .legend { display:flex; justify-content:center; gap:14px; margin-top:12px; font-size:10.5px; color:var(--muted); flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  .hint { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:2px; color:var(--muted); z-index:5; }
+  #panel-toggle{display:none;position:fixed;z-index:300;top:12px;right:14px;align-items:center;gap:6px;
+    background:rgba(56,225,255,.18);border:1px solid var(--accent);color:var(--accent);
+    border-radius:20px;padding:9px 16px;font-size:13px;letter-spacing:1px;cursor:pointer;font-family:inherit;}
+  @media (max-width:680px){
+    .panel{top:auto!important;bottom:0!important;left:0!important;right:0!important;width:auto!important;
+      max-height:64vh;border-radius:16px 16px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom))!important;
+      transform:translateY(105%);transition:transform .28s ease;}
+    body.panel-open .panel{transform:translateY(0)!important;}
+    #panel-toggle{display:flex!important;}
+    a.back{top:13px!important;left:14px!important;} header{top:40px!important;left:14px!important;}
+    h1{font-size:12px!important;letter-spacing:4px!important;} .sub{display:none!important;} .hint{display:none!important;}
+  }
+</style>
+</head>
+<body>
+<button id="panel-toggle" onclick="var o=document.body.classList.toggle('panel-open');this.textContent=o?'✕ Close':'⚙ Controls';">⚙ Controls</button>
+
+<canvas id="c"></canvas>
+<a class="back" href="index.html">‹ PHYSIK</a>
+<header><h1>THE FROZEN STAR</h1><div class="sub">LIGHT CRAWLING AT THE HORIZON · THE EXPONENTIAL BLUESHIFT</div></header>
+
+<div class="panel">
+  <div class="eq">dr/dt = 1 − 2M/r</div>
+  <div class="eq"><small>→ 0 at the horizon · escaping light crawls</small></div>
+  <div class="status" id="status">ALICE FALLING</div>
+  <div class="btns">
+    <button id="play">⏸ Pause</button>
+    <button id="reset">↺ Reset</button>
+  </div>
+  <div class="row"><label>Speed <b id="spv">1.4×</b></label>
+    <input id="speed" type="range" min="0.3" max="4" step="0.1" value="1.4"></div>
+
+  <div class="readout">
+    <div><span class="k">Bob's clock</span><b id="roT">0.0</b></div>
+    <div><span class="k">Alice's clock</span><b id="roTau">0.00</b></div>
+    <div><span class="k">Height ε = r−2M</span><b id="roEps">6.000</b></div>
+    <div><span class="k">Freq Bob gets</span><b id="roFac">1.00 ω</b></div>
+  </div>
+
+  <canvas class="mini" id="plot" width="560" height="240"></canvas>
+  <div class="cap">Received frequency (log) vs arrival time — exponential = a straight line. Slope = κ.</div>
+
+  <div class="hr"></div>
+  <div class="row" style="margin-top:14px"><label>Trace a ray back &nbsp; <b id="roB">1.10×</b></label>
+    <input id="rEmit" type="range" min="1.02" max="9" step="0.001" value="6"></div>
+  <canvas class="mini" id="wave" width="560" height="120" style="margin-top:8px"></canvas>
+  <div class="cap">ω<sub>local</sub> = ω⁄√(1−2M/r) — crests bunch up toward the horizon (the blueshift, → ∞).</div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:hsl(230,80%,60%)"></span>high freq</span>
+    <span><span class="dot" style="background:hsl(0,82%,52%)"></span>redshifted</span>
+    <span>○ = a pulse Alice emitted</span>
+  </div>
+</div>
+<div class="hint">she never crosses — she freezes</div>
+
+<script>
+(function(){
+  const twoM=1, rBob=9, rStart=7;
+  const f = r => Math.max(0, 1 - twoM/r);
+  const colorFor = fac => { fac=Math.max(0,Math.min(1,fac)); return `hsl(${235*fac},86%,${42+22*fac}%)`; };
+
+  // ---- main scene canvas (responsive, hi-dpi) ----
+  const c=document.getElementById('c'), ctx=c.getContext('2d');
+  let W=0,H=0,dpr=1;
+  function resize(){ dpr=Math.min(2,window.devicePixelRatio||1);
+    W=window.innerWidth; H=window.innerHeight;
+    c.width=W*dpr; c.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+  window.addEventListener('resize',resize); resize();
+
+  let S, playing=true, speed=1.4;
+  function reset(){ S={t:0,rA:rStart,tau:0,nextEmit:0.15,pulses:[],arr:[],bobFac:1,flash:-9}; }
+  reset();
+
+  function step(dt){
+    S.t+=dt;
+    S.rA += (-0.72*f(S.rA))*dt; if(S.rA<twoM+1e-4) S.rA=twoM+1e-4;
+    S.tau += Math.sqrt(f(S.rA))*dt;
+    let g=0; while(S.tau>=S.nextEmit && g++<8){
+      S.pulses.push({r:S.rA,fac:Math.max(Math.sqrt(f(S.rA)),1e-4)}); S.nextEmit+=0.30; S.flash=S.t; }
+    for(const p of S.pulses) p.r += f(p.r)*dt;
+    for(let i=S.pulses.length-1;i>=0;i--){ if(S.pulses[i].r>=rBob){
+      S.bobFac=S.pulses[i].fac; S.arr.push({t:S.t,fac:S.pulses[i].fac});
+      if(S.arr.length>600) S.arr.shift(); S.pulses.splice(i,1); } }
+    if(S.pulses.length>500) S.pulses.splice(0,S.pulses.length-500);
+  }
+
+  function drawScene(){
+    const cy=H*0.46, xH=Math.max(140,W*0.18), xB=W*0.86, Rhole=Math.min(W,H)*0.085+18;
+    const X = r => { r=Math.max(twoM,Math.min(rBob,r)); return xH+(r-twoM)/(rBob-twoM)*(xB-xH); };
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#05070d'; ctx.fillRect(0,0,W,H);
+    // stars
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+    for(let i=0;i<80;i++){ ctx.fillRect((i*149.3)%W,(i*83.7)%H,1,1); }
+    // radial guide
+    ctx.strokeStyle='rgba(120,160,210,0.12)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(xH,cy); ctx.lineTo(xB,cy); ctx.stroke();
+    // black hole
+    const hx=xH-Rhole;
+    const ring=ctx.createRadialGradient(hx,cy,Rhole*0.6,hx,cy,Rhole*1.5);
+    ring.addColorStop(0,'rgba(255,174,87,0)'); ring.addColorStop(0.82,'rgba(255,174,87,0)');
+    ring.addColorStop(0.9,'rgba(255,174,87,0.5)'); ring.addColorStop(1,'rgba(255,174,87,0)');
+    ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(hx,cy,Rhole*1.5,0,7); ctx.fill();
+    ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(hx,cy,Rhole,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(56,225,255,0.85)'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(hx,cy,Rhole,-1.2,1.2); ctx.stroke();
+    ctx.fillStyle='rgba(160,210,255,0.8)'; ctx.font='12px system-ui,sans-serif'; ctx.fillText('horizon  r = 2M', xH-26, cy-Rhole-14);
+    // pulses
+    for(const p of S.pulses){ const x=X(p.r), col=colorFor(p.fac);
+      ctx.shadowColor=col; ctx.shadowBlur=10; ctx.fillStyle=col;
+      ctx.beginPath(); ctx.arc(x,cy,4.5,0,7); ctx.fill(); }
+    ctx.shadowBlur=0;
+    // Alice
+    const xa=X(S.rA);
+    if(S.t-S.flash<0.25){ ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.arc(xa,cy,14,0,7); ctx.fill(); }
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#38e1ff'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(xa,cy,7,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(220,235,255,0.85)'; ctx.font='12px system-ui,sans-serif'; ctx.fillText('Alice', xa-15, cy+27);
+    // Bob
+    const col=colorFor(S.bobFac);
+    ctx.shadowColor=col; ctx.shadowBlur=18; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(xB,cy,11,0,7); ctx.fill(); ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(255,255,255,0.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(xB,cy,11,0,7); ctx.stroke();
+    ctx.fillStyle='rgba(220,235,255,0.85)'; ctx.fillText('Bob', xB-10, cy-22);
+  }
+
+  // ---- mini log-plot ----
+  const plot=document.getElementById('plot'), px=plot.getContext('2d');
+  const PW=plot.width, PH=plot.height, pad=34;
+  function drawPlot(){
+    px.clearRect(0,0,PW,PH); px.fillStyle='#070b16'; px.fillRect(0,0,PW,PH);
+    px.strokeStyle='#1d2b44'; px.lineWidth=1; px.fillStyle='#6b7d99'; px.font='12px ui-monospace,monospace';
+    for(let k=0;k>=-4;k--){ const y=pad+(PH-2*pad)*(-k)/4;
+      px.beginPath(); px.moveTo(pad,y); px.lineTo(PW-10,y); px.stroke(); px.fillText('10^'+k,4,y+4); }
+    const arr=S.arr; if(arr.length<2) return;
+    const tmax=Math.max(arr[arr.length-1].t,6);
+    const Xp=t=>pad+(PW-pad-12)*(t/tmax), Yp=fc=>pad+(PH-2*pad)*(-Math.log10(Math.max(fc,1e-4)))/4;
+    px.strokeStyle='#38e1ff'; px.lineWidth=2; px.beginPath();
+    arr.forEach((a,i)=>{ const x=Xp(a.t),y=Yp(a.fac); i?px.lineTo(x,y):px.moveTo(x,y); }); px.stroke();
+    for(const a of arr){ px.fillStyle=colorFor(a.fac); px.beginPath(); px.arc(Xp(a.t),Yp(a.fac),2.4,0,7); px.fill(); }
+  }
+
+  // ---- blueshift wave widget ----
+  const wave=document.getElementById('wave'), wx=wave.getContext('2d');
+  const WW=wave.width, WH=wave.height;
+  const rEmit=document.getElementById('rEmit'), roB=document.getElementById('roB');
+  function drawWave(){
+    const r=parseFloat(rEmit.value), V=Math.sqrt(f(r)), B=V>1e-4?1/V:9999;
+    wx.clearRect(0,0,WW,WH); wx.fillStyle='#070b16'; wx.fillRect(0,0,WW,WH);
+    const lam=Math.max(5,150/B), cyw=WH/2, amp=WH*0.32;
+    const hue=Math.max(0,235-235*Math.min(1,(B-1)/8));
+    wx.strokeStyle=`hsl(${hue},86%,58%)`; wx.lineWidth=2.5; wx.beginPath();
+    for(let x=8;x<=WW-8;x++){ const y=cyw-amp*Math.sin((x-8)/lam*2*Math.PI); x===8?wx.moveTo(x,y):wx.lineTo(x,y); }
+    wx.stroke();
+    roB.textContent=(B>=9999?'∞':B.toFixed(2)+'×');
+  }
+  rEmit.addEventListener('input',drawWave);
+
+  // ---- readouts + loop ----
+  const roT=document.getElementById('roT'),roTau=document.getElementById('roTau'),
+        roEps=document.getElementById('roEps'),roFac=document.getElementById('roFac'),
+        statusEl=document.getElementById('status');
+  let last=performance.now();
+  function frame(now){
+    const real=Math.min(0.05,(now-last)/1000); last=now;
+    if(playing){ const dt=real*speed*2.2, n=4; for(let i=0;i<n;i++) step(dt/n); }
+    drawScene(); drawPlot();
+    roT.textContent=S.t.toFixed(1); roTau.textContent=S.tau.toFixed(2);
+    roEps.textContent=(S.rA-twoM).toFixed(3); roFac.textContent=S.bobFac.toFixed(3)+' ω';
+    const frozen=(S.rA-twoM)<0.02;
+    statusEl.textContent=frozen?'FROZEN — reddening to black':'ALICE FALLING';
+    statusEl.classList.toggle('frozen',frozen);
+    requestAnimationFrame(frame);
+  }
+  const playBtn=document.getElementById('play');
+  playBtn.addEventListener('click',()=>{ playing=!playing; playBtn.textContent=playing?'⏸ Pause':'▶ Play'; });
+  document.getElementById('reset').addEventListener('click',reset);
+  document.getElementById('speed').addEventListener('input',e=>{ speed=parseFloat(e.target.value); document.getElementById('spv').textContent=speed.toFixed(1)+'×'; });
+  drawWave(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
