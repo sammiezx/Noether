@@ -312,17 +312,22 @@
         </div>
       </a>
 
-      <a class="exhibit" href="contour-rotation.html">
+      <a class="exhibit" href="contour-3d.html">
         <span class="badge live">LIVE</span>
         <div class="thumb">
-          <div style="position:absolute;inset:0;background:radial-gradient(60% 60% at 30% 50%,rgba(56,225,255,.12),transparent 60%),#070b16"></div>
-          <div style="position:absolute;left:30%;top:50%;width:55%;height:2px;background:#ffae57;transform-origin:left center;transform:rotate(38deg);box-shadow:0 0 8px #ffae57"></div>
-          <div style="position:absolute;left:30%;top:50%;width:55%;height:2px;background:#38e1ff;transform-origin:left center;transform:rotate(-38deg);box-shadow:0 0 8px #38e1ff"></div>
-          <div style="position:absolute;left:calc(30% - 5px);top:calc(50% - 5px);width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 12px #fff"></div>
+          <div style="position:absolute;inset:0;background:radial-gradient(70% 70% at 50% 70%,rgba(56,225,255,.10),transparent 60%),#070b16"></div>
+          <div style="position:absolute;left:8%;right:8%;top:42%;height:46%;background:
+            repeating-linear-gradient(90deg,transparent 0 6px,rgba(255,174,87,.0) 6px 7px);
+            mask:linear-gradient(90deg,#000,transparent)"></div>
+          <svg viewBox="0 0 200 90" style="position:absolute;inset:0;width:100%;height:100%">
+            <path d="M20,55 Q40,30 55,55 T90,55 T125,52 T160,54" fill="none" stroke="#ffae57" stroke-width="2"/>
+            <path d="M20,55 Q40,78 55,55 T90,58 T125,56 T160,55" fill="none" stroke="#38e1ff" stroke-width="2"/>
+            <circle cx="20" cy="55" r="3.5" fill="#fff"/>
+          </svg>
         </div>
         <div class="body">
-          <h3>Contour Rotation</h3>
-          <p>The Wick rotation that makes the Hawking temperature. Tip the x-contour a quarter turn around the branch point and watch the oscillating integrand become a decay — α and β tipping opposite ways. The power x<sup>iω/κ</sup> pays a real factor e<sup>∓φω/κ</sup>, and at ±90° their ratio is the whole Boltzmann weight e<sup>−2πω/κ</sup>.</p>
+          <h3>α &amp; β — Rotating the Contour</h3>
+          <p>The two Hawking integrands drawn as <em>waves standing up over the complex x-plane</em>. Rotate the contour and watch each wave dive into its own half-plane and damp to zero — α and β tipping opposite ways. Their height gap at the branch point is e<sup>∓φω/κ</sup>, and squared it is the Boltzmann weight e<sup>−2πω/κ</sup>. Rotatable 3D.</p>
           <span class="open">Launch visualization →</span>
         </div>
       </a>
