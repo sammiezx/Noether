@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contour Rotation → the Thermal Factor — Physik</title>
+<style>
+  :root{--bg:#05070d;--panel:rgba(10,16,28,0.85);--border:#1d2b44;--accent:#38e1ff;
+    --text:#cbd5e1;--muted:#6b7d99;--amber:#ffae57;--red:#ff5a3c;--green:#9fffc8;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,system-ui,"Segoe UI",sans-serif;overflow:hidden;}
+  #c{position:fixed;inset:0;display:block;}
+  a.back{position:fixed;top:22px;left:28px;z-index:6;font-size:12px;letter-spacing:2px;color:var(--muted);text-decoration:none;}
+  a.back:hover{color:var(--accent);}
+  header{position:fixed;top:48px;left:28px;z-index:5;}
+  h1{margin:0;font-size:15px;letter-spacing:4px;font-weight:600;color:var(--accent);text-shadow:0 0 18px rgba(56,225,255,.5);}
+  .sub{margin-top:4px;font-size:11px;letter-spacing:3px;color:var(--muted);}
+  .panel{position:fixed;top:22px;right:24px;z-index:5;width:336px;background:var(--panel);
+    border:1px solid var(--border);border-radius:14px;padding:16px 18px 18px;backdrop-filter:blur(10px);
+    box-shadow:0 10px 40px rgba(0,0,0,.5);max-height:calc(100vh - 44px);overflow:auto;}
+  .eq{text-align:center;font-family:"Times New Roman",Georgia,serif;color:#fff;font-size:16px;margin:3px 0;}
+  .eq small{color:var(--muted);font-size:12px;}
+  .btns{display:flex;gap:6px;margin-top:11px;}
+  .btns button{flex:1;padding:9px 5px;font-size:12px;cursor:pointer;background:rgba(56,225,255,.06);color:var(--text);
+    border:1px solid var(--border);border-radius:8px;letter-spacing:.5px;font-family:inherit;}
+  .btns button:hover{background:rgba(56,225,255,.16);border-color:var(--accent);color:#fff;}
+  .row{margin:13px 0 2px;} .row label{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;} .row label b{color:var(--accent);}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
+  .readout{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;border-top:1px solid var(--border);padding-top:12px;}
+  .readout .k{color:var(--muted);font-size:10px;letter-spacing:.5px;text-transform:uppercase;}
+  .readout b{font-variant-numeric:tabular-nums;font-size:14px;display:block;margin-top:1px;}
+  b.amber{color:var(--amber);}b.cyan{color:var(--accent);}b.red{color:var(--red);}b.green{color:var(--green);}
+  .big{margin-top:13px;padding:10px 12px;border-radius:8px;background:rgba(255,174,87,.08);border:1px solid rgba(255,174,87,.3);text-align:center;}
+  .big .k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--amber);}
+  .big b{font-size:18px;color:#fff;font-variant-numeric:tabular-nums;display:block;margin-top:2px;}
+  .note{font-size:10.5px;color:var(--muted);margin-top:12px;line-height:1.6;}
+  .note b{color:var(--text);}
+  #panel-toggle{display:none;position:fixed;z-index:300;top:12px;right:14px;align-items:center;gap:6px;
+    background:rgba(56,225,255,.18);border:1px solid var(--accent);color:var(--accent);
+    border-radius:20px;padding:9px 16px;font-size:13px;letter-spacing:1px;cursor:pointer;font-family:inherit;}
+  @media (max-width:680px){
+    .panel{top:auto!important;bottom:0!important;left:0!important;right:0!important;width:auto!important;max-height:56vh;
+      border-radius:16px 16px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom))!important;transform:translateY(105%);transition:transform .28s ease;}
+    body.panel-open .panel{transform:translateY(0)!important;}
+    #panel-toggle{display:flex!important;}
+    a.back{top:13px!important;left:14px!important;}header{top:40px!important;left:14px!important;}
+    h1{font-size:12px!important;letter-spacing:3px!important;}.sub{display:none!important;}
+  }
+</style>
+</head>
+<body>
+<button id="panel-toggle" onclick="var o=document.body.classList.toggle('panel-open');this.textContent=o?'✕ Close':'⚙ Controls';">⚙ Controls</button>
+<canvas id="c"></canvas>
+<a class="back" href="index.html">‹ PHYSIK</a>
+<header><h1>CONTOUR ROTATION</h1><div class="sub">THE WICK ROTATION THAT MAKES THE TEMPERATURE</div></header>
+
+<div class="panel">
+  <div class="eq">α ~ ∫ x<sup>iω/κ</sup> e<sup>−iω′x</sup> dx &nbsp;·&nbsp; β ~ ∫ x<sup>iω/κ</sup> e<sup>+iω′x</sup> dx</div>
+  <div class="eq small">rotate the x-contour until the wiggle becomes a decay</div>
+
+  <div class="btns"><button id="rot">▶ rotate the contour 90°</button></div>
+  <div class="row"><label>rotation φ <b id="phiv">0°</b></label><input id="phi" type="range" min="0" max="90" step="0.5" value="0"></div>
+  <div class="row"><label>ω / κ <b id="wkv">0.50</b></label><input id="wk" type="range" min="0.1" max="1.5" step="0.01" value="0.5"></div>
+
+  <div class="readout">
+    <div><span class="k">far end of contour</span><b id="conv" class="red">oscillates ✗</b></div>
+    <div><span class="k">rotation phase paid</span><b id="ph" class="cyan">e<sup>∓iφ</sup></b></div>
+    <div><span class="k">|α| ∝ &nbsp;(rotate −φ)</span><b id="amag" class="amber">e<sup>+φω/κ</sup></b></div>
+    <div><span class="k">|β| ∝ &nbsp;(rotate +φ)</span><b id="bmag" class="cyan">e<sup>−φω/κ</sup></b></div>
+  </div>
+  <div class="big"><div class="k">at φ = 90° &nbsp;→&nbsp; |β/α|²</div><b id="boltz">e<sup>−4φω/κ</sup> = …</b></div>
+
+  <div class="note" id="story"><b>Why rotate?</b> On the real axis the integrand is pure phase e<sup>∓iω′x</sup> — it just spins and never settles, so the integral doesn&rsquo;t converge. Tip the contour a quarter turn into the complex plane and that phase becomes a real <em>decay</em> e<sup>−ω′|x|</sup> (a Wick rotation) — now it converges. The catch: <b>α and β must tip in opposite directions.</b> As the ray swings around the branch point at x = 0, the power x<sup>iω/κ</sup> pays a <em>real</em> factor e<sup>∓φω/κ</sup>. At a full ±90° those factors are e<sup>±πω/2κ</sup>, opposite for α and β — and their ratio is the whole Boltzmann weight e<sup>−2πω/κ</sup>.</div>
+</div>
+
+<script>
+(function(){
+  const c=document.getElementById('c'),ctx=c.getContext('2d');
+  let W,H; function resize(){const d=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;
+    c.width=W*d;c.height=H*d;ctx.setTransform(d,0,0,d,0,0);} addEventListener('resize',resize);resize();
+
+  let phi=0, wk=0.5, rotating=false; const wp=1.6;   // wp = ω′
+  const $=id=>document.getElementById(id);
+
+  // plane placement
+  function geom(){ const PW=Math.min(W*0.62,W-360); const cx=Math.min(PW*0.34,260)+40, cy=H*0.5;
+    const sc=Math.min(PW,H)*0.20; return {cx,cy,sc}; }
+  const M=(re,im)=>{const {cx,cy,sc}=geom();return [cx+re*sc, cy-im*sc];};
+
+  function drawRay(thetaDeg, sign, color){ // sign: integrand e^{sign i ω' x}; ray angle = thetaDeg (deg)
+    const {sc}=geom(); const th=thetaDeg*Math.PI/180;
+    const tMax=3.6, N=240; let prev=null;
+    for(let i=0;i<=N;i++){ const t=tMax*i/N;
+      const re=t*Math.cos(th), im=t*Math.sin(th);
+      // integrand magnitude = |e^{sign i ω' x}| = e^{ - sign*ω'*Im(x) }
+      const mag=Math.exp(-sign*wp*im);
+      const a=Math.max(0.04,Math.min(1,mag));
+      const [x,y]=M(re,im);
+      if(prev){ ctx.strokeStyle=color; ctx.globalAlpha=a; ctx.lineWidth=3; ctx.beginPath();ctx.moveTo(prev[0],prev[1]);ctx.lineTo(x,y);ctx.stroke(); }
+      prev=[x,y];
+    }
+    ctx.globalAlpha=1;
+    // arrowhead
+    const [ex,ey]=M(tMax*Math.cos(th),tMax*Math.sin(th));
+    ctx.fillStyle=color; ctx.beginPath();
+    const ah=th; ctx.save();ctx.translate(ex,ey);ctx.rotate(-ah);ctx.moveTo(0,0);ctx.lineTo(-12,-5);ctx.lineTo(-12,5);ctx.closePath();ctx.fill();ctx.restore();
+  }
+
+  // inset: Re of the α-integrand along the contour vs t  (shows oscillation -> decay)
+  function inset(){
+    const bw=Math.min(W*0.30,300), bh=120, bx=24, by=H-bh-26;
+    ctx.fillStyle='rgba(10,16,28,0.82)';ctx.strokeStyle='#1d2b44';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,10);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#6b7d99';ctx.font='10px system-ui';
+    ctx.fillText('integrand on the α-contour  (Re)',bx+12,by+16);
+    const th=-phi*Math.PI/180; // α rotates DOWN (−φ)
+    const ax=bx+12, ay=by+bh/2+8, aw=bw-24, tMax=6;
+    ctx.strokeStyle='rgba(255,255,255,.12)';ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax+aw,ay);ctx.stroke();
+    ctx.strokeStyle='#ffae57';ctx.lineWidth=2;ctx.beginPath();
+    for(let i=0;i<=200;i++){ const t=tMax*i/200;
+      const im=t*Math.sin(th), re=t*Math.cos(th);
+      const val=Math.exp(wp*im)*Math.cos(-wp*re); // e^{-iω'x}=e^{ω'Im}·(cos(-ω'Re)+...)
+      const X=ax+aw*i/200, Y=ay-val*34;
+      i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);
+    }
+    ctx.stroke();
+    ctx.fillStyle=phi>4?'#9fffc8':'#ff5a3c';ctx.font='10px system-ui';
+    ctx.fillText(phi>4?'→ decays, converges ✓':'pure wiggle, diverges ✗', ax, by+bh-8);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#05070d';ctx.fillRect(0,0,W,H);
+    const {cx,cy}=geom();
+    // axes
+    ctx.strokeStyle='rgba(255,255,255,.14)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx-120,cy);ctx.lineTo(W*0.62,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,40);ctx.lineTo(cx,H-40);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.font='12px system-ui';
+    ctx.fillText('Re x',W*0.60,cy-8); ctx.fillText('Im x',cx+8,56);
+    // branch cut (neg real axis)
+    ctx.strokeStyle='#fff';ctx.setLineDash([7,5]);ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx-120,cy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillText('branch cut',cx-115,cy-8);
+    // original (real-axis) contour, faint
+    ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=2;
+    const [o2x,o2y]=M(3.6,0);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(o2x,o2y);ctx.stroke();
+    // rotated contours: α down (−φ), β up (+φ)
+    drawRay(-phi, +1, '#ffae57');  // α: e^{-iω'x}, sign=+1
+    drawRay(+phi, -1, '#38e1ff');  // β: e^{+iω'x}, sign=-1
+    // labels on rays
+    ctx.font='13px system-ui';
+    const [lax,lay]=M(2.6*Math.cos(-phi*Math.PI/180),2.6*Math.sin(-phi*Math.PI/180));
+    ctx.fillStyle='#ffae57';ctx.fillText('α  (rotate −φ)',lax+8,lay+14);
+    const [lbx,lby]=M(2.6*Math.cos(phi*Math.PI/180),2.6*Math.sin(phi*Math.PI/180));
+    ctx.fillStyle='#38e1ff';ctx.fillText('β  (rotate +φ)',lbx+8,lby-6);
+    // rotation arc
+    ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(cx,cy,40,0,phi*Math.PI/180);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,40,-phi*Math.PI/180,0);ctx.stroke();
+    // branch point
+    ctx.fillStyle='#fff';ctx.shadowColor='#fff';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(cx,cy,6,0,7);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#fff';ctx.font='12px system-ui';ctx.fillText('x = 0  (horizon, v = v₀)',cx+10,cy+20);
+    inset();
+  }
+
+  function readouts(){
+    const f=phi*Math.PI/180;
+    $('phiv').textContent=phi.toFixed(0)+'°';
+    $('conv').innerHTML = phi>4 ? 'decays ✓' : 'oscillates ✗';
+    $('conv').className = phi>4?'green':'red';
+    $('amag').innerHTML='e<sup>+φω/κ</sup> = '+Math.exp(f*wk).toFixed(3);
+    $('bmag').innerHTML='e<sup>−φω/κ</sup> = '+Math.exp(-f*wk).toFixed(3);
+    const r2=Math.exp(-4*f*wk);   // (|β|/|α|)^2 = e^{-4φω/κ};  at φ=π/2 → e^{-2πω/κ}
+    $('boltz').innerHTML='e<sup>−4φω/κ</sup> = '+r2.toExponential(3)+(phi>=89.5?'  = e<sup>−2πω/κ</sup>':'');
+  }
+
+  $('phi').oninput=e=>{phi=parseFloat(e.target.value);rotating=false;readouts();};
+  $('wk').oninput=e=>{wk=parseFloat(e.target.value);$('wkv').textContent=wk.toFixed(2);readouts();};
+  $('rot').onclick=()=>{rotating=!rotating; if(rotating&&phi>=89.5)phi=0; $('rot').textContent=rotating?'⏸ pause':'▶ rotate the contour 90°';};
+
+  let last=performance.now();
+  function loop(now){const dt=Math.max(0,Math.min(0.05,(now-last)/1000));last=now;
+    if(rotating){phi=Math.min(90,phi+dt*30);$('phi').value=phi; if(phi>=90){rotating=false;$('rot').textContent='▶ rotate the contour 90°';} readouts();}
+    draw();requestAnimationFrame(loop);
+  }
+  readouts();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
